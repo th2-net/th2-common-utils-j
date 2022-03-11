@@ -16,6 +16,7 @@ plugins {
     id 'java'
     id 'java-library'
     id 'maven-publish'
+    id 'java-test-fixtures'
     id "io.github.gradle-nexus.publish-plugin" version "1.0.0"
     id 'signing'
     id 'com.google.protobuf' version '0.8.8' apply false
@@ -159,8 +160,10 @@ dependencies {
     implementation "org.slf4j:slf4j-log4j12"
     implementation "org.slf4j:slf4j-api"
 
+    testImplementation 'org.mockito.kotlin:mockito-kotlin:4.0.0'
     testImplementation "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
     testImplementation "org.junit.jupiter:junit-jupiter-params:${junitVersion}"
+    testFixturesImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5', version: kotlin_version
     testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:${junitVersion}"
 }
 
