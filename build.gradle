@@ -64,8 +64,7 @@ tasks.withType(PublishToMavenRepository) {
                 project.hasProperty('nexus_url')) ||
                 (repository == publishing.repositories.sonatype &&
                         project.hasProperty('sonatypeUsername') &&
-                        project.hasProperty('sonatypePassword')) ||
-                (repository == publishing.repositories.localRepo)
+                        project.hasProperty('sonatypePassword'))
     }
 }
 tasks.withType(Sign) {

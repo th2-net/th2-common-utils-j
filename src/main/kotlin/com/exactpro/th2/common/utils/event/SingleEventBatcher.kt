@@ -40,7 +40,7 @@ class SingleEventBatcher(
     private var batch = EventBatch.newBuilder()
     private var future: Future<*> = CompletableFuture.completedFuture(null)
 
-    fun onEvent(event: Event) {
+    fun onEvent(event: Event) = lock.withLock {
         batch.addEvents(event)
 
         when (batch.eventsCount) {
