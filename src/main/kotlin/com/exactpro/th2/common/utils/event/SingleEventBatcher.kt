@@ -27,7 +27,6 @@ import kotlin.concurrent.withLock
 
 /**
  * The batcher collects single events inside and calls `onBatch` method when `maxFlushTime` has elapsed or number of pending events has reached `maxBatchSize`.
- * This class uses estore feature when elements of event batch without parent event id are stored as single events.
  */
 class SingleEventBatcher(
     private val maxBatchSize: Int = 100,
