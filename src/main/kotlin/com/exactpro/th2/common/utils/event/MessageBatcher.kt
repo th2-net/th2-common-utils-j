@@ -20,9 +20,15 @@ class MessageBatcher(
 ) : AutoCloseable {
     private val batches = ConcurrentHashMap<String, MessageBatch>()
 
-    fun onMessage(message: RawMessage) = batches.getOrPut(message.metadata.id.connectionId.sessionAlias, ::MessageBatch).add(message)
-    fun onMessage(message: Message) = batches.getOrPut(message.metadata.id.connectionId.sessionAlias, ::MessageBatch).add(message)
-    fun onGroup(group: MessageGroup) = batches.getOrPut(group.getSessionAlias(), ::MessageBatch).add(group)
+    private fun putInto(param: String, group: MessageGroup) = batches.getOrPut(param, ::MessageBatch).add(group)
+
+    fun onMessage(message: RawMessage) = onMessage(message.metadata.id.connectionId.sessionAlias, message)
+    fun onMessage(message: Message) = onMessage(message.metadata.id.connectionId.sessionAlias, message)
+    fun onGroup(group: MessageGroup) = onGroup(group.getSessionAlias() ?: "", group)
+
+    fun onMessage(alias: String, message: RawMessage) = putInto(alias, message.toGroup())
+    fun onMessage(alias: String, message: Message) = putInto(alias, message.toGroup())
+    fun onGroup(alias: String, group: MessageGroup) = putInto(alias, group)
 
     override fun close() = batches.values.forEach(MessageBatch::close)
 
@@ -31,26 +37,8 @@ class MessageBatcher(
         private var batch = MessageGroupBatch.newBuilder()
         private var future: Future<*> = CompletableFuture.completedFuture(null)
 
-        fun add(message: RawMessage) = lock.withLock {
-            batch.addGroups(message.toGroup())
-
-            when (batch.groupsCount) {
-                1 -> future = executor.schedule(::send, maxFlushTime, MILLISECONDS)
-                maxBatchSize -> send()
-            }
-        }
-
         fun add(group: MessageGroup) = lock.withLock {
             batch.addGroups(group)
-
-            when (batch.groupsCount) {
-                1 -> future = executor.schedule(::send, maxFlushTime, MILLISECONDS)
-                maxBatchSize -> send()
-            }
-        }
-
-        fun add(message: Message) = lock.withLock {
-            batch.addGroups(message.toGroup())
 
             when (batch.groupsCount) {
                 1 -> future = executor.schedule(::send, maxFlushTime, MILLISECONDS)
