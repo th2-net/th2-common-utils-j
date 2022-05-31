@@ -1,5 +1,6 @@
 package com.exactpro.th2.common.utils.event
 
+import com.exactpro.th2.common.grpc.AnyMessage
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.MessageGroupBatch
@@ -22,6 +23,7 @@ class MessageBatcher(
 
     fun onMessage(message: RawMessage) = batches.getOrPut(message.metadata.id.connectionId.sessionAlias, ::MessageBatch).add(message.toGroup())
     fun onMessage(message: Message) = batches.getOrPut(message.metadata.id.connectionId.sessionAlias, ::MessageBatch).add(message.toGroup())
+    fun onMessage(message: AnyMessage) = batches.getOrPut(message.sessionAlias, ::MessageBatch).add(message.toGroup())
     fun onGroup(group: MessageGroup) = batches.getOrPut(group.sessionAlias, ::MessageBatch).add(group)
 
     override fun close() = batches.values.forEach(MessageBatch::close)
