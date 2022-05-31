@@ -1,23 +1,32 @@
 package com.exactpro.th2.common.utils.event
 
-import com.exactpro.th2.common.grpc.AnyMessage
+import com.exactpro.th2.common.grpc.AnyMessageOrBuilder
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.MessageGroupOrBuilder
 import com.exactpro.th2.common.grpc.RawMessage
 
-fun Message.toGroup(): MessageGroup = MessageGroup.newBuilder().addMessage(this).build()
-fun RawMessage.toGroup(): MessageGroup = MessageGroup.newBuilder().addMessage(this).build()
+fun Message.toGroup(): MessageGroup = MessageGroup.newBuilder().add(this).build()
+fun RawMessage.toGroup(): MessageGroup = MessageGroup.newBuilder().add(this).build()
 
-fun MessageGroup.Builder.addMessage(message: Message): MessageGroup.Builder = this.addMessages(AnyMessage.newBuilder().setMessage(message).build())
-fun MessageGroup.Builder.addMessage(message: RawMessage): MessageGroup.Builder = this.addMessages(AnyMessage.newBuilder().setRawMessage(message).build())
-
-fun MessageGroupOrBuilder.getSessionAlias(): String? {
-    messagesList.forEach {
-        when {
-            it.hasMessage() && !it.message.metadata.id.connectionId.sessionAlias.isNullOrBlank() -> return it.message.metadata.id.connectionId.sessionAlias
-            it.hasRawMessage() && !it.message.metadata.id.connectionId.sessionAlias.isNullOrBlank() -> return it.message.metadata.id.connectionId.sessionAlias
-        }
+val AnyMessageOrBuilder.sessionAlias: String
+    get() = when {
+        hasMessage() -> message.metadata.id.connectionId.sessionAlias
+        hasRawMessage() -> message.metadata.id.connectionId.sessionAlias
+        else -> error("Unsupported message kind: $kindCase")
     }
-    return null
-}
+
+fun MessageGroup.Builder.add(message: Message): MessageGroup.Builder = apply { addMessagesBuilder().message = message }
+fun MessageGroup.Builder.add(message: RawMessage): MessageGroup.Builder = apply { addMessagesBuilder().rawMessage = message }
+
+val MessageGroupOrBuilder.sessionAlias: String?
+    get() {
+        messagesList.forEach {
+            with(it.sessionAlias) {
+                if (isNotBlank()) {
+                    return this
+                }
+            }
+        }
+        return null
+    }
