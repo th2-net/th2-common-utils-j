@@ -17,14 +17,15 @@ class MessageBatcher(
     private val maxBatchSize: Int = 100,
     private val maxFlushTime: Long = 1000,
     private val executor: ScheduledExecutorService,
-    private val onBatch: (MessageGroupBatch) -> Unit
+    private val onBatch: (MessageGroupBatch) -> Unit,
+    private val onError: (Throwable) -> Unit = {}
 ) : AutoCloseable {
     private val batches = ConcurrentHashMap<String, MessageBatch>()
 
-    fun onMessage(message: RawMessage) = batches.getOrPut(message.metadata.id.connectionId.sessionAlias, ::MessageBatch).add(message.toGroup())
-    fun onMessage(message: Message) = batches.getOrPut(message.metadata.id.connectionId.sessionAlias, ::MessageBatch).add(message.toGroup())
-    fun onMessage(message: AnyMessage) = batches.getOrPut(message.sessionAlias, ::MessageBatch).add(message.toGroup())
-    fun onGroup(group: MessageGroup) = batches.getOrPut(group.sessionAlias, ::MessageBatch).add(group)
+    fun onMessage(message: RawMessage) = batches.getOrPut(message.sessionAliasOrEmpty, ::MessageBatch).add(message.toGroup())
+    fun onMessage(message: Message) = batches.getOrPut(message.sessionAliasOrEmpty, ::MessageBatch).add(message.toGroup())
+    fun onMessage(message: AnyMessage) = batches.getOrPut(message.sessionAliasOrEmpty, ::MessageBatch).add(message.toGroup())
+    fun onGroup(group: MessageGroup) = batches.getOrPut(group.sessionAliasOrEmpty, ::MessageBatch).add(group)
 
     override fun close() = batches.values.forEach(MessageBatch::close)
 
@@ -44,7 +45,7 @@ class MessageBatcher(
 
         private fun send() = lock.withLock<Unit> {
             if (batch.groupsCount == 0) return
-            batch.build().runCatching(onBatch)
+            batch.build().runCatching(onBatch).onFailure(onError)
             batch.clearGroups()
             future.cancel(false)
         }
