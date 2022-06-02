@@ -1,6 +1,7 @@
 package com.exactpro.th2.common.utils.event
 
 import com.exactpro.th2.common.grpc.AnyMessage
+import com.exactpro.th2.common.grpc.Direction
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.MessageGroupBatch
@@ -17,19 +18,31 @@ class MessageBatcher(
     private val maxBatchSize: Int = 100,
     private val maxFlushTime: Long = 1000,
     private val executor: ScheduledExecutorService,
-    private val onBatch: (MessageGroupBatch) -> Unit,
+    private val onBatch: (MessageGroupBatch, Direction) -> Unit,
     private val onError: (Throwable) -> Unit = {}
 ) : AutoCloseable {
-    private val batches = ConcurrentHashMap<String, MessageBatch>()
+    private val firstBatches = ConcurrentHashMap<String, MessageBatch>()
+    private val secondBatches = ConcurrentHashMap<String, MessageBatch>()
 
-    fun onMessage(message: RawMessage) = batches.getOrPut(message.sessionAliasOrEmpty, ::MessageBatch).add(message.toGroup())
-    fun onMessage(message: Message) = batches.getOrPut(message.sessionAliasOrEmpty, ::MessageBatch).add(message.toGroup())
-    fun onMessage(message: AnyMessage) = batches.getOrPut(message.sessionAliasOrEmpty, ::MessageBatch).add(message.toGroup())
-    fun onGroup(group: MessageGroup) = batches.getOrPut(group.sessionAliasOrEmpty, ::MessageBatch).add(group)
+    private fun putIntoDirection(messages: MessageGroup, alias: String, direction: Direction) {
+        when(direction) {
+            Direction.FIRST -> firstBatches.getOrPut(alias) { MessageBatch(direction) }.add(messages)
+            Direction.SECOND -> secondBatches.getOrPut(alias) { MessageBatch(direction) }.add(messages)
+            else -> error("Does not support direction: $direction")
+        }
+    }
 
-    override fun close() = batches.values.forEach(MessageBatch::close)
+    fun onMessage(message: RawMessage, direction: Direction) = putIntoDirection(message.toGroup(), message.sessionAliasOrEmpty, direction)
+    fun onMessage(message: Message, direction: Direction) = putIntoDirection(message.toGroup(), message.sessionAliasOrEmpty, direction)
+    fun onMessage(message: AnyMessage, direction: Direction) = putIntoDirection(message.toGroup(), message.sessionAliasOrEmpty, direction)
+    fun onGroup(group: MessageGroup, direction: Direction) = putIntoDirection(group, group.sessionAliasOrEmpty, direction)
 
-    private inner class MessageBatch : AutoCloseable {
+    override fun close() {
+        firstBatches.values.forEach(MessageBatch::close)
+        secondBatches.values.forEach(MessageBatch::close)
+    }
+
+    private inner class MessageBatch(val direction: Direction) : AutoCloseable {
         private val lock = ReentrantLock()
         private var batch = MessageGroupBatch.newBuilder()
         private var future: Future<*> = CompletableFuture.completedFuture(null)
@@ -45,7 +58,7 @@ class MessageBatcher(
 
         private fun send() = lock.withLock<Unit> {
             if (batch.groupsCount == 0) return
-            batch.build().runCatching(onBatch).onFailure(onError)
+            runCatching { onBatch(batch.build(), direction) }.onFailure(onError)
             batch.clearGroups()
             future.cancel(false)
         }
