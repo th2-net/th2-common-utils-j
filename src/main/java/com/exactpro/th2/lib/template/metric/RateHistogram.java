@@ -27,12 +27,11 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.LongAdder;
 
 public class RateHistogram implements Closeable {
     private static final Logger LOGGER = LoggerFactory.getLogger(RateHistogram.class.getName());
 
-    private final ScheduledFuture<?> fixedRate;
+    private final ScheduledFuture<?> scheduler;
     private final Histogram histogram;
     private final ConcurrentMap<String, HistogramCounter> counterMap = new ConcurrentHashMap<>();
 
@@ -41,29 +40,35 @@ public class RateHistogram implements Closeable {
                          long intervalMs) {
         this.histogram = prometheusHistogram;
 
-        this.fixedRate = scheduledExecutorService.scheduleAtFixedRate(() -> {
-            try {
-                counterMap.forEach((key, histogramCounter) ->
-                        histogramCounter.getHistogramChild().observe(histogramCounter.getCounter().sumThenReset()));
-            } catch (Exception e) {
-                LOGGER.error("Error inside scheduled metric retrieving: ", e);
-            }
-        }, intervalMs, intervalMs, TimeUnit.MILLISECONDS);
+        this.scheduler = scheduledExecutorService.scheduleAtFixedRate(() ->
+                counterMap.forEach((label, histogramCounter) -> {
+                    try {
+                        histogramCounter.observe();
+                    } catch (Exception e) {
+                        LOGGER.error("Failed to observe rate for label: {}", label, e);
+                    }
+                }), intervalMs, intervalMs, TimeUnit.MILLISECONDS);
     }
 
-    public void inc(Collection<String> labels, long value) {
+    public void incAll(Collection<String> labels, long value) {
         labels.forEach(label -> inc(label, value));
     }
 
     public void inc(String label, long value) {
-        var histogramCounter = counterMap.computeIfAbsent(label, key -> new HistogramCounter(
-                histogram.labels(key),
-                new LongAdder()));
-        histogramCounter.getCounter().add(value);
+        getCounterForLabel(label)
+                .increment(value);
+    }
+
+    public void inc(String label) {
+        inc(label, 1L);
+    }
+
+    public HistogramCounter getCounterForLabel(String label) {
+        return counterMap.computeIfAbsent(label, newLabel -> new HistogramCounter(histogram.labels(newLabel)));
     }
 
     @Override
     public void close() {
-        fixedRate.cancel(true);
+        scheduler.cancel(true);
     }
 }

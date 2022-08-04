@@ -16,24 +16,22 @@
 
 package com.exactpro.th2.lib.template.metric;
 
-import io.prometheus.client.Histogram;
+import io.prometheus.client.Histogram.Child;
 
 import java.util.concurrent.atomic.LongAdder;
 
 public class HistogramCounter {
-    private final Histogram.Child histogramChild;
-    private final LongAdder counter;
+    private final Child histogramChild;
+    private final LongAdder counter = new LongAdder();
 
-    public HistogramCounter(Histogram.Child histogramChild, LongAdder counter) {
+    public HistogramCounter(Child histogramChild) {
         this.histogramChild = histogramChild;
-        this.counter = counter;
     }
 
-    public Histogram.Child getHistogramChild() {
-        return histogramChild;
+    public void increment(long value) {
+        counter.add(value);
     }
-
-    public LongAdder getCounter() {
-        return counter;
+    public void observe() {
+        histogramChild.observe(counter.sumThenReset());
     }
 }
