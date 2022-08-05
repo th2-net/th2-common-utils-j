@@ -1,71 +1,25 @@
-/*
- * Copyright 2022 Exactpro (Exactpro Systems Limited)
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.exactpro.th2.lib.template.metric;
 
 import io.prometheus.client.Histogram;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
-import java.util.Collection;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-public class RateHistogram implements Closeable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(RateHistogram.class.getName());
+public abstract class RateHistogram implements Closeable {
 
-    private final ScheduledFuture<?> scheduler;
-    private final Histogram histogram;
-    private final ConcurrentMap<String, HistogramCounter> counterMap = new ConcurrentHashMap<>();
+    protected final ScheduledFuture<?> scheduler;
+    protected final Histogram histogram;
 
-    public RateHistogram(ScheduledExecutorService scheduledExecutorService,
-                         Histogram prometheusHistogram,
-                         long intervalMs) {
+    protected RateHistogram(ScheduledExecutorService scheduledExecutorService,
+                                       Histogram prometheusHistogram,
+                                       long intervalMs) {
         this.histogram = prometheusHistogram;
-
-        this.scheduler = scheduledExecutorService.scheduleAtFixedRate(() ->
-                counterMap.forEach((label, histogramCounter) -> {
-                    try {
-                        histogramCounter.observe();
-                    } catch (Exception e) {
-                        LOGGER.error("Failed to observe rate for label: {}", label, e);
-                    }
-                }), intervalMs, intervalMs, TimeUnit.MILLISECONDS);
+        this.scheduler = scheduledExecutorService.scheduleAtFixedRate(this::observeRates, intervalMs, intervalMs, TimeUnit.MILLISECONDS);
     }
 
-    public void incAll(Collection<String> labels, long value) {
-        labels.forEach(label -> inc(label, value));
-    }
-
-    public void inc(String label, long value) {
-        getCounterForLabel(label)
-                .increment(value);
-    }
-
-    public void inc(String label) {
-        inc(label, 1L);
-    }
-
-    public HistogramCounter getCounterForLabel(String label) {
-        return counterMap.computeIfAbsent(label, newLabel -> new HistogramCounter(histogram.labels(newLabel)));
-    }
+    protected abstract void observeRates();
 
     @Override
     public void close() {
