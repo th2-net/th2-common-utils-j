@@ -17,14 +17,8 @@
 package com.exactpro.th2.lib.template.metric;
 
 import io.prometheus.client.Histogram;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.stream.Collectors;
 
 /**
  * This class is used for periodically update Prometheus metrics. <br> <br>
@@ -32,44 +26,15 @@ import java.util.stream.Collectors;
  * This number is final and cannot be changed. <br> <br>
  * Use {@link SingleLabelRateHistogram} if amount of labels is 1.
  */
-public class MultiLabelRateHistogram extends RateHistogram {
-    private static final Logger LOGGER = LoggerFactory.getLogger(MultiLabelRateHistogram.class.getName());
-
-    private final ConcurrentMap<Collection<String>, HistogramCounter> multiLabelCounterMap = new ConcurrentHashMap<>();
+public class MultiLabelRateHistogram extends RateHistogram<String[]> {
 
     public MultiLabelRateHistogram(ScheduledExecutorService scheduledExecutorService, Histogram prometheusHistogram, long intervalMs) {
         super(scheduledExecutorService, prometheusHistogram, intervalMs);
     }
 
     @Override
-    protected void observeRates() {
-        multiLabelCounterMap.forEach((labels, histogramCounter) -> {
-            try {
-                histogramCounter.observe();
-            } catch (Exception e) {
-                LOGGER.error("Failed to observe rate for multi label: {}", labels.stream().collect(Collectors.joining(",", "[", "]")), e);
-            }
-        });
-    }
-
-    public void inc(Collection<String> labels, long value) {
-        getCounterForLabels(labels)
-                .increment(value);
-    }
-
-    public void inc(Collection<String> labels) {
-        inc(labels, 1L);
-    }
-
-    /**
-     * Be sure to provide exact the same amount of labels that was provided for io.prometheus.client.Histogram creation. <br>
-     * IllegalArgumentException will be thrown otherwise.
-     *
-     * @param labels label set for counter
-     * @return new or existed HistogramCounter for label set
-     */
-    public HistogramCounter getCounterForLabels(Collection<String> labels) {
-        return multiLabelCounterMap.computeIfAbsent(labels, newLabels -> new HistogramCounter(histogram.labels(newLabels.toArray(new String[0]))));
+    public HistogramCounter getOrCreateCounter(String[] label) {
+        return labelCounterMap.computeIfAbsent(label, newLabels -> new HistogramCounterImpl(histogram.labels(label)));
     }
 
 }

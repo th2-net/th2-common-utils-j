@@ -16,6 +16,22 @@
 
 package com.exactpro.th2.lib.template.metric;
 
-public interface HistogramCounter {
-    void increment(long value);
+import io.prometheus.client.Histogram.Child;
+
+import java.util.concurrent.atomic.LongAdder;
+
+public class HistogramCounterImpl implements HistogramCounter {
+    private final Child histogramChild;
+    private final LongAdder counter = new LongAdder();
+
+    public HistogramCounterImpl(Child histogramChild) {
+        this.histogramChild = histogramChild;
+    }
+
+    public void increment(long value) {
+        counter.add(value);
+    }
+    public void observe() {
+        histogramChild.observe(counter.sumThenReset());
+    }
 }

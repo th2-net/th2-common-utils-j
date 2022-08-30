@@ -17,12 +17,8 @@
 package com.exactpro.th2.lib.template.metric;
 
 import io.prometheus.client.Histogram;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
@@ -31,41 +27,19 @@ import java.util.concurrent.ScheduledExecutorService;
  * This class is made to use only one label.
  * Use {@link MultiLabelRateHistogram} if amount of labels isn't 1.
  */
-public class SingleLabelRateHistogram extends RateHistogram {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SingleLabelRateHistogram.class.getName());
-
-    private final ConcurrentMap<String, HistogramCounter> singleLabelCounterMap = new ConcurrentHashMap<>();
+public class SingleLabelRateHistogram extends RateHistogram<String> {
 
     protected SingleLabelRateHistogram(ScheduledExecutorService scheduledExecutorService, Histogram prometheusHistogram, long intervalMs) {
         super(scheduledExecutorService, prometheusHistogram, intervalMs);
     }
 
     @Override
-    protected void observeRates() {
-        singleLabelCounterMap.forEach((label, histogramCounter) -> {
-            try {
-                histogramCounter.observe();
-            } catch (Exception e) {
-                LOGGER.error("Failed to observe rate for single label: {}", label, e);
-            }
-        });
+    public HistogramCounter getOrCreateCounter(String label) {
+        return labelCounterMap.computeIfAbsent(label, newLabels -> new HistogramCounterImpl(histogram.labels(label)));
     }
 
     public void incAll(Collection<String> labels, long value) {
-        labels.forEach(label -> inc(label, value));
-    }
-
-    public void inc(String label, long value) {
-        getCounterForLabel(label)
-                .increment(value);
-    }
-
-    public void inc(String label) {
-        inc(label, 1L);
-    }
-
-    public HistogramCounter getCounterForLabel(String label) {
-        return singleLabelCounterMap.computeIfAbsent(label, newLabel -> new HistogramCounter(histogram.labels(newLabel)));
+        labels.forEach(label -> inc(value, label));
     }
 
 }
