@@ -32,10 +32,10 @@ class MessageBatcher(
         }
     }
 
-    fun onMessage(message: RawMessage, direction: Direction) = putIntoDirection(message.toGroup(), message.sessionAliasOrEmpty, direction)
-    fun onMessage(message: Message, direction: Direction) = putIntoDirection(message.toGroup(), message.sessionAliasOrEmpty, direction)
-    fun onMessage(message: AnyMessage, direction: Direction) = putIntoDirection(message.toGroup(), message.sessionAliasOrEmpty, direction)
-    fun onGroup(group: MessageGroup, direction: Direction) = putIntoDirection(group, group.sessionAliasOrEmpty, direction)
+    fun onMessage(message: RawMessage, direction: Direction) = putIntoDirection(message.toGroup(), message.sessionAlias, direction)
+    fun onMessage(message: Message, direction: Direction) = putIntoDirection(message.toGroup(), message.sessionAlias, direction)
+    fun onMessage(message: AnyMessage, direction: Direction) = putIntoDirection(message.toGroup(), message.sessionAlias, direction)
+    fun onGroup(group: MessageGroup, direction: Direction) = putIntoDirection(group, group.sessionAlias, direction)
 
     override fun close() {
         firstBatches.values.forEach(MessageBatch::close)
