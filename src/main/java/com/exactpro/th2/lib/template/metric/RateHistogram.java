@@ -77,7 +77,7 @@ public abstract class RateHistogram<T> implements Closeable {
     /**
      * We need to specify a way to get String or String[] from the generic type
      *
-     * example: return histogram.labels(T -> String | String[])
+     * example: return histogram.labels(T to String or String[])
      * @param label generic key for HistogramCounter map
      * @return corresponding Histogram.Child object
      */
