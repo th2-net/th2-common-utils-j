@@ -17,6 +17,7 @@
 package com.exactpro.th2.lib.template.metric;
 
 import io.prometheus.client.Histogram;
+import io.prometheus.client.Histogram.Child;
 
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -33,8 +34,8 @@ public class MultiLabelRateHistogram extends RateHistogram<String[]> {
     }
 
     @Override
-    public HistogramCounter getOrCreateCounter(String[] label) {
-        return labelCounterMap.computeIfAbsent(label, newLabels -> new HistogramCounterImpl(histogram.labels(label)));
+    protected Child getHistogramChild(String[] label) {
+        return histogram.labels(label);
     }
 
 }

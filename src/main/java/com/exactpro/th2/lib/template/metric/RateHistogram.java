@@ -17,6 +17,7 @@
 package com.exactpro.th2.lib.template.metric;
 
 import io.prometheus.client.Histogram;
+import io.prometheus.client.Histogram.Child;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,9 +39,9 @@ public abstract class RateHistogram<T> implements Closeable {
 
     protected RateHistogram(ScheduledExecutorService scheduledExecutorService,
                                        Histogram prometheusHistogram,
-                                       long intervalMs) {
+                                       long observationIntervalMs) {
         this.histogram = prometheusHistogram;
-        this.scheduler = scheduledExecutorService.scheduleAtFixedRate(this::observeRates, intervalMs, intervalMs, TimeUnit.MILLISECONDS);
+        this.scheduler = scheduledExecutorService.scheduleAtFixedRate(this::observeRates, observationIntervalMs, observationIntervalMs, TimeUnit.MILLISECONDS);
     }
 
     protected void observeRates() {
@@ -48,14 +49,14 @@ public abstract class RateHistogram<T> implements Closeable {
             try {
                 histogramCounter.observe();
             } catch (Exception e) {
-                LOGGER.error("Failed to observe rate for label: {}", label, e);
+                LOGGER.error("Failed to observe rate for labels: {}", label, e);
             }
         });
     }
 
+
     public void inc(long value, T label) {
-        getOrCreateCounter(label)
-                .increment(value);
+        getOrCreateCounter(label).increment(value);
     }
 
     public void inc(T label) {
@@ -69,7 +70,18 @@ public abstract class RateHistogram<T> implements Closeable {
      * @param label label set for counter
      * @return new or existed HistogramCounter for label set
      */
-    public abstract HistogramCounter getOrCreateCounter(T label);
+    public HistogramCounter getOrCreateCounter(T label) {
+        return labelCounterMap.computeIfAbsent(label, newLabels -> new HistogramCounterImpl(getHistogramChild(label)));
+    }
+
+    /**
+     * We need to specify a way to get String or String[] from the generic type
+     *
+     * @implNote example: return histogram.labels(T -> String | String[])
+     * @param label generic key for HistogramCounter map
+     * @return corresponding Histogram.Child object
+     */
+    protected abstract Child getHistogramChild(T label);
 
     @Override
     public void close() {
