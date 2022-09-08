@@ -1,4 +1,4 @@
-package com.exactpro.th2.common.utils.event
+package com.exactpro.th2.common.utils.message
 
 import com.exactpro.th2.common.grpc.AnyMessage
 import com.exactpro.th2.common.grpc.AnyMessageOrBuilder
