@@ -146,18 +146,19 @@ test {
 }
 
 dependencies {
-    api platform('com.exactpro.th2:bom:3.1.0')
-    api group: 'com.exactpro.th2', name: 'common', version: '3.40.0-TH2-3789-+'
+    api platform('com.exactpro.th2:bom:4.0.1')
+    api group: 'com.exactpro.th2', name: 'common', version: '3.41.0'
 
     implementation "org.jetbrains:annotations"
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib:${kotlin_version}"
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${kotlin_version}"
 
-    implementation 'io.github.microutils:kotlin-logging:2.1.21'
+    implementation 'io.github.microutils:kotlin-logging:3.0.0'
 
-    implementation "org.slf4j:slf4j-log4j12"
-    implementation "org.slf4j:slf4j-api"
+    implementation 'org.apache.logging.log4j:log4j-slf4j-impl'
+    implementation 'org.apache.logging.log4j:log4j-1.2-api'
+    implementation 'org.apache.logging.log4j:log4j-core'
 
     testImplementation 'org.mockito.kotlin:mockito-kotlin:4.0.0'
     testImplementation "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
