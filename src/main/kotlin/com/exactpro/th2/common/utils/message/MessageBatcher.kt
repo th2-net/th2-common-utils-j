@@ -4,9 +4,7 @@ import com.exactpro.th2.common.grpc.AnyMessage
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.MessageGroupBatch
-import com.exactpro.th2.common.grpc.MessageOrBuilder
 import com.exactpro.th2.common.grpc.RawMessage
-import com.exactpro.th2.common.grpc.RawMessageOrBuilder
 import com.exactpro.th2.common.message.toTimestamp
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
@@ -17,17 +15,19 @@ import java.util.concurrent.TimeUnit.MILLISECONDS
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-//val GROUP_SELECTOR: (RawMessage) -> Any = { it.sessionGroup }
-//val ALIAS_SELECTOR: (RawMessage) -> Any = { it.sessionAlias to it.direction }
+val RAW_ALIAS_SELECTOR: (RawMessage.Builder) -> Any? = { it.sessionAlias }
+val RAW_DIRECTION_SELECTOR: (RawMessage.Builder) -> Any = { it.sessionAlias to it.direction }
+val ALIAS_SELECTOR: (Message.Builder) -> Any? = { it.sessionAlias }
+val DIRECTION_SELECTOR: (Message.Builder) -> Any = { it.sessionAlias to it.direction }
 
 class RawMessageBatcher(
-    maxBatchSize: Int = 100,
+    maxBatchSize: Int = 1000,
     maxFlushTime: Long = 1000,
-    private val batchSelector: (RawMessageOrBuilder) -> Any,
+    private val batchSelector: (RawMessage.Builder) -> Any?,
     executor: ScheduledExecutorService,
-    onBatch: (MessageGroupBatch) -> Unit,
-    onError: (Throwable) -> Unit = {}
-): Batcher<RawMessage.Builder>(maxBatchSize,maxFlushTime, executor, onBatch, onError) {
+    onError: (Throwable) -> Unit = {},
+    onBatch: (MessageGroupBatch) -> Unit
+): Batcher<RawMessage.Builder>(maxBatchSize,maxFlushTime, executor, onError, onBatch) {
     override fun onMessage(message: RawMessage.Builder) {
         message.metadataBuilder.timestamp = Instant.now().toTimestamp()
         add(batchSelector(message), message.build())
@@ -35,13 +35,13 @@ class RawMessageBatcher(
 }
 
 class MessageBatcher(
-    maxBatchSize: Int = 100,
+    maxBatchSize: Int = 1000,
     maxFlushTime: Long = 1000,
-    private val batchSelector: (MessageOrBuilder) -> Any,
+    private val batchSelector: (Message.Builder) -> Any?,
     executor: ScheduledExecutorService,
-    onBatch: (MessageGroupBatch) -> Unit,
-    onError: (Throwable) -> Unit = {}
-): Batcher<Message.Builder>(maxBatchSize,maxFlushTime, executor, onBatch, onError) {
+    onError: (Throwable) -> Unit = {},
+    onBatch: (MessageGroupBatch) -> Unit
+): Batcher<Message.Builder>(maxBatchSize,maxFlushTime, executor, onError, onBatch) {
     override fun onMessage(message: Message.Builder) {
         message.metadataBuilder.timestamp = Instant.now().toTimestamp()
         add(batchSelector(message), message.build())
@@ -49,20 +49,20 @@ class MessageBatcher(
 }
 
 abstract class Batcher<T>(
-    private val maxBatchSize: Int = 100,
+    private val maxBatchSize: Int = 1000,
     private val maxFlushTime: Long = 1000,
     private val executor: ScheduledExecutorService,
-    private val onBatch: (MessageGroupBatch) -> Unit,
-    private val onError: (Throwable) -> Unit = {}
+    private val onError: (Throwable) -> Unit = {},
+    private val onBatch: (MessageGroupBatch) -> Unit
 ) : AutoCloseable {
-    private val batches = ConcurrentHashMap<Any, Batch>()
+    private val batches = ConcurrentHashMap<Any?, Batch>()
 
     abstract fun onMessage(message: T)
 
-    protected fun add(key: Any, message: RawMessage) = batches.getOrPut(key, ::Batch).add(message.toGroup())
-    protected fun add(key: Any, message: Message) = batches.getOrPut(key, ::Batch).add(message.toGroup())
-    protected fun add(key: Any, message: AnyMessage) = batches.getOrPut(key, ::Batch).add(message.toGroup())
-    protected fun add(key: Any, group: MessageGroup) = batches.getOrPut(key, ::Batch).add(group)
+    protected fun add(key: Any?, message: RawMessage) = batches.getOrPut(key, ::Batch).add(message.toGroup())
+    protected fun add(key: Any?, message: Message) = batches.getOrPut(key, ::Batch).add(message.toGroup())
+    protected fun add(key: Any?, message: AnyMessage) = batches.getOrPut(key, ::Batch).add(message.toGroup())
+    protected fun add(key: Any?, group: MessageGroup) = batches.getOrPut(key, ::Batch).add(group)
 
     override fun close() {
         batches.values.forEach {

@@ -6,14 +6,19 @@ import com.exactpro.th2.common.grpc.Direction
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.MessageGroupOrBuilder
+import com.exactpro.th2.common.grpc.MessageOrBuilder
 import com.exactpro.th2.common.grpc.RawMessage
+import com.exactpro.th2.common.grpc.RawMessageOrBuilder
 import com.google.protobuf.util.JsonFormat
 
 fun Message.toGroup(): MessageGroup = MessageGroup.newBuilder().add(this).build()
 fun RawMessage.toGroup(): MessageGroup = MessageGroup.newBuilder().add(this).build()
 fun AnyMessage.toGroup(): MessageGroup = MessageGroup.newBuilder().addMessages(this).build()
+fun Message.Builder.toGroup(): MessageGroup = MessageGroup.newBuilder().add(this.build()).build()
+fun RawMessage.Builder.toGroup(): MessageGroup = MessageGroup.newBuilder().add(this.build()).build()
+fun AnyMessage.Builder.toGroup(): MessageGroup = MessageGroup.newBuilder().addMessages(this).build()
 
-val Message.direction
+val MessageOrBuilder.direction
     get(): Direction = metadata.id.direction
 var Message.Builder.direction
     get(): Direction = metadata.id.direction
@@ -21,7 +26,7 @@ var Message.Builder.direction
         metadataBuilder.idBuilder.direction = value
     }
 
-val RawMessage.direction
+val RawMessageOrBuilder.direction
     get(): Direction = metadata.id.direction
 var RawMessage.Builder.direction
     get(): Direction = metadata.id.direction
@@ -29,7 +34,7 @@ var RawMessage.Builder.direction
         metadataBuilder.idBuilder.direction = value
     }
 
-val AnyMessage.direction
+val AnyMessageOrBuilder.direction
     get(): Direction = when {
         hasMessage() -> message.direction
         hasRawMessage() -> rawMessage.direction
@@ -50,46 +55,32 @@ var AnyMessage.Builder.direction
 
     }
 
-val AnyMessageOrBuilder.sessionAliasOrNull: String?
-    get() = when {
-        hasMessage() -> message.sessionAliasOrNull
-        hasRawMessage() -> rawMessage.sessionAliasOrNull
-        else -> error("Unsupported message kind: $kindCase")
-    }
-
-val Message.sessionAliasOrNull: String?
-    get() = sessionAlias.ifEmpty { null }
-
-val RawMessage.sessionAliasOrNull: String?
-    get() = sessionAlias.ifEmpty { null }
-
-val MessageGroupOrBuilder.sessionAliasOrNull: String?
-    get() = sessionAlias.ifEmpty { null }
-
-val AnyMessageOrBuilder.sessionAlias: String
+val AnyMessageOrBuilder.sessionAlias: String?
     get() = when {
         hasMessage() -> message.sessionAlias
         hasRawMessage() -> rawMessage.sessionAlias
         else -> error("Unsupported message kind: $kindCase")
     }
 
-val Message.sessionAlias: String
-    get() = metadata.id.connectionId.sessionAlias
-var Message.Builder.sessionAlias
-    get(): String = metadata.id.connectionId.sessionAlias
+var Message.Builder.sessionAlias: String?
+    get() = metadata.id.connectionId.sessionAlias.ifEmpty { null }
     set(value) {
         metadataBuilder.idBuilder.connectionIdBuilder.sessionAlias = value
     }
 
-val RawMessage.sessionAlias: String
-    get() = metadata.id.connectionId.sessionAlias
-var RawMessage.Builder.sessionAlias
-    get(): String = metadata.id.connectionId.sessionAlias
+val MessageOrBuilder.sessionAlias: String?
+    get() = metadata.id.connectionId.sessionAlias.ifEmpty { null }
+
+var RawMessage.Builder.sessionAlias: String?
+    get() = metadata.id.connectionId.sessionAlias.ifEmpty { null }
     set(value) {
         metadataBuilder.idBuilder.connectionIdBuilder.sessionAlias = value
     }
 
-val MessageGroupOrBuilder.sessionAlias: String
+val RawMessageOrBuilder.sessionAlias: String?
+    get() = metadata.id.connectionId.sessionAlias.ifEmpty { null }
+
+val MessageGroupOrBuilder.sessionAlias: String?
     get() {
         var sessionAlias: String? = null
         for (message in messagesList) {
@@ -98,7 +89,7 @@ val MessageGroupOrBuilder.sessionAlias: String
                 else -> require(sessionAlias == message.sessionAlias) { "Group contains more than one session alias: ${JsonFormat.printer().print(this)}" }
             }
         }
-        return sessionAlias ?: ""
+        return sessionAlias
     }
 
 val MessageGroupOrBuilder.direction: Direction
