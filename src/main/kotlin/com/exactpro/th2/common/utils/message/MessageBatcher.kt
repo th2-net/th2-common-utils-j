@@ -15,15 +15,13 @@ import java.util.concurrent.TimeUnit.MILLISECONDS
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-val RAW_ALIAS_SELECTOR: (RawMessage.Builder) -> Any? = { it.sessionAlias }
 val RAW_DIRECTION_SELECTOR: (RawMessage.Builder) -> Any = { it.sessionAlias to it.direction }
-val ALIAS_SELECTOR: (Message.Builder) -> Any? = { it.sessionAlias }
 val DIRECTION_SELECTOR: (Message.Builder) -> Any = { it.sessionAlias to it.direction }
 
 class RawMessageBatcher(
     maxBatchSize: Int = 1000,
     maxFlushTime: Long = 1000,
-    private val batchSelector: (RawMessage.Builder) -> Any?,
+    private val batchSelector: (RawMessage.Builder) -> Any,
     executor: ScheduledExecutorService,
     onError: (Throwable) -> Unit = {},
     onBatch: (MessageGroupBatch) -> Unit
@@ -37,7 +35,7 @@ class RawMessageBatcher(
 class MessageBatcher(
     maxBatchSize: Int = 1000,
     maxFlushTime: Long = 1000,
-    private val batchSelector: (Message.Builder) -> Any?,
+    private val batchSelector: (Message.Builder) -> Any,
     executor: ScheduledExecutorService,
     onError: (Throwable) -> Unit = {},
     onBatch: (MessageGroupBatch) -> Unit
@@ -55,14 +53,14 @@ abstract class Batcher<T>(
     private val onError: (Throwable) -> Unit = {},
     private val onBatch: (MessageGroupBatch) -> Unit
 ) : AutoCloseable {
-    private val batches = ConcurrentHashMap<Any?, Batch>()
+    private val batches = ConcurrentHashMap<Any, Batch>()
 
     abstract fun onMessage(message: T)
 
-    protected fun add(key: Any?, message: RawMessage) = batches.getOrPut(key, ::Batch).add(message.toGroup())
-    protected fun add(key: Any?, message: Message) = batches.getOrPut(key, ::Batch).add(message.toGroup())
-    protected fun add(key: Any?, message: AnyMessage) = batches.getOrPut(key, ::Batch).add(message.toGroup())
-    protected fun add(key: Any?, group: MessageGroup) = batches.getOrPut(key, ::Batch).add(group)
+    protected fun add(key: Any, message: RawMessage) = batches.getOrPut(key, ::Batch).add(message.toGroup())
+    protected fun add(key: Any, message: Message) = batches.getOrPut(key, ::Batch).add(message.toGroup())
+    protected fun add(key: Any, message: AnyMessage) = batches.getOrPut(key, ::Batch).add(message.toGroup())
+    protected fun add(key: Any, group: MessageGroup) = batches.getOrPut(key, ::Batch).add(group)
 
     override fun close() {
         batches.values.forEach {
