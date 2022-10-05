@@ -147,7 +147,7 @@ test {
 
 dependencies {
     api platform('com.exactpro.th2:bom:4.0.1')
-    api group: 'com.exactpro.th2', name: 'common', version: '3.41.0'
+    api 'com.exactpro.th2:grpc-common:3.11.1'
 
     implementation "org.jetbrains:annotations"
 

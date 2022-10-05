@@ -5,7 +5,6 @@ import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.MessageGroupBatch
 import com.exactpro.th2.common.grpc.RawMessage
-import com.exactpro.th2.common.message.toTimestamp
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap

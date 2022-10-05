@@ -9,7 +9,17 @@ import com.exactpro.th2.common.grpc.MessageGroupOrBuilder
 import com.exactpro.th2.common.grpc.MessageOrBuilder
 import com.exactpro.th2.common.grpc.RawMessage
 import com.exactpro.th2.common.grpc.RawMessageOrBuilder
+import com.google.protobuf.Duration
+import com.google.protobuf.Timestamp
 import com.google.protobuf.util.JsonFormat
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.util.Calendar
+import java.util.Date
+import java.util.TimeZone
+
+typealias JavaDuration = java.time.Duration
 
 fun Message.toGroup(): MessageGroup = MessageGroup.newBuilder().add(this).build()
 fun RawMessage.toGroup(): MessageGroup = MessageGroup.newBuilder().add(this).build()
@@ -106,3 +116,11 @@ val MessageGroupOrBuilder.direction: Direction
 
 fun MessageGroup.Builder.add(message: Message): MessageGroup.Builder = apply { addMessagesBuilder().message = message }
 fun MessageGroup.Builder.add(message: RawMessage): MessageGroup.Builder = apply { addMessagesBuilder().rawMessage = message }
+
+fun Instant.toTimestamp(): Timestamp = Timestamp.newBuilder().setSeconds(epochSecond).setNanos(nano).build()
+fun Date.toTimestamp(): Timestamp = toInstant().toTimestamp()
+fun LocalDateTime.toTimestamp(zone: ZoneOffset) : Timestamp = toInstant(zone).toTimestamp()
+fun LocalDateTime.toTimestamp() : Timestamp = toTimestamp(ZoneOffset.of(TimeZone.getDefault().id))
+fun Calendar.toTimestamp() : Timestamp = toInstant().toTimestamp()
+fun Duration.toJavaDuration(): JavaDuration = JavaDuration.ofSeconds(seconds, nanos.toLong())
+fun JavaDuration.toProtoDuration(): Duration = Duration.newBuilder().setSeconds(seconds).setNanos(nano).build()
