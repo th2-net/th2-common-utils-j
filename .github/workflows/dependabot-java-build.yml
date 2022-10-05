@@ -3,7 +3,7 @@ name: Dependabot build check
 on:
   push:
     branches:
-      - dependabot**
+      - dependabot*
 
 jobs:
   build:
