@@ -20,7 +20,7 @@ val DIRECTION_SELECTOR: (Message.Builder) -> Any = { it.sessionAlias to it.direc
 class RawMessageBatcher(
     maxFlushTime: Long = 1000,
     private val batchSelector: (RawMessage.Builder) -> Any,
-    batchLimiter: (MessageGroupBatch.Builder) -> Boolean,
+    batchLimiter: (MessageGroupBatch.Builder, MessageGroup, () -> Unit, () -> Unit) -> Boolean,
     executor: ScheduledExecutorService,
     onError: (Throwable) -> Unit = {},
     onBatch: (MessageGroupBatch) -> Unit
@@ -34,7 +34,7 @@ class RawMessageBatcher(
 class MessageBatcher(
     maxFlushTime: Long = 1000,
     private val batchSelector: (Message.Builder) -> Any,
-    batchLimiter: (MessageGroupBatch.Builder) -> Boolean,
+    batchLimiter: (MessageGroupBatch.Builder, MessageGroup, () -> Unit, () -> Unit) -> Boolean,
     executor: ScheduledExecutorService,
     onError: (Throwable) -> Unit = {},
     onBatch: (MessageGroupBatch) -> Unit
@@ -47,7 +47,7 @@ class MessageBatcher(
 
 abstract class Batcher<T>(
     private val maxFlushTime: Long = 1000,
-    private val batchLimiter: (MessageGroupBatch.Builder) -> Boolean,
+    private val batchLimiter: (MessageGroupBatch.Builder, MessageGroup, () -> Unit, () -> Unit) -> Boolean,
     private val executor: ScheduledExecutorService,
     private val onError: (Throwable) -> Unit = {},
     private val onBatch: (MessageGroupBatch) -> Unit
@@ -74,15 +74,7 @@ abstract class Batcher<T>(
 
         fun add(group: MessageGroup): Unit = lock.withLock {
             batch.addGroups(group)
-
-            if (batchLimiter(batch)) {
-                future = executor.schedule(::send, maxFlushTime, MILLISECONDS)
-            } else {
-                batch.groupsBuilderList.removeLast()
-                send()
-                batch.addGroups(group)
-            }
-
+            batchLimiter(batch, group, ::send) { executor.schedule(::send, maxFlushTime, MILLISECONDS) }
         }
 
         private fun send() = lock.withLock<Unit> {
