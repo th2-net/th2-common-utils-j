@@ -19,6 +19,7 @@ package com.exactpro.th2.common.utils.event
 import com.exactpro.th2.common.grpc.Event
 import com.exactpro.th2.common.grpc.EventBatch
 import com.exactpro.th2.common.grpc.EventID
+import com.exactpro.th2.common.grpc.MessageGroup
 import com.google.common.cache.CacheBuilder
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
@@ -27,6 +28,16 @@ import java.util.concurrent.TimeUnit.MILLISECONDS
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
+fun createContentSizeLimiter(maxEventBatchContentSize: Int): (List<Event>, Event) -> Boolean {
+    return { batch: List<Event>, new: Event ->
+        batch.sumOf { it.getContentSize() } + new.getContentSize() > maxEventBatchContentSize
+    }
+}
+
+private fun Event.getContentSize(): Int {
+    return body.size()
+}
+
 /**
  * Collects and groups events by their parent-event-id and calls `onBatch` method when `maxFlushTime`
  * for a group has elapsed or number of events in it has reached `maxBatchSize`.
@@ -34,6 +45,7 @@ import kotlin.concurrent.withLock
 class EventBatcher(
     private val maxBatchSize: Int = 100,
     private val maxFlushTime: Long = 1000,
+    private val checkEventLimit: (List<Event>, Event) -> Boolean,
     private val executor: ScheduledExecutorService,
     private val onBatch: (EventBatch) -> Unit,
 ) : AutoCloseable {
@@ -52,12 +64,16 @@ class EventBatcher(
         private var batch = EventBatch.newBuilder()
         private var future: Future<*> = CompletableFuture.completedFuture(null)
 
-        fun add(event: Event) = lock.withLock {
-            batch.addEvents(event)
-
-            when (batch.eventsCount) {
-                1 -> future = executor.schedule(::send, maxFlushTime, MILLISECONDS)
-                maxBatchSize -> send()
+        fun add(event: Event): Unit = lock.withLock {
+            when {
+                checkEventLimit(batch.eventsList, event) -> {
+                    batch.addEvents(event)
+                    if (batch.eventsCount == 1) future = executor.schedule(::send, maxFlushTime, MILLISECONDS) else Unit
+                }
+                else -> {
+                    send()
+                    batch.addEvents(event)
+                }
             }
         }
 
