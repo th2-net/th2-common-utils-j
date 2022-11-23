@@ -11,6 +11,7 @@ package com.exactpro.th2.common.utils.event
 
 import com.exactpro.th2.common.grpc.Event
 import com.exactpro.th2.common.grpc.EventBatch
+import com.exactpro.th2.common.utils.CheckedConsumer
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
 import java.util.concurrent.ScheduledExecutorService
@@ -25,7 +26,8 @@ class SingleEventBatcher(
     private val maxBatchSize: Int = 100,
     private val maxFlushTime: Long = 1000,
     private val executor: ScheduledExecutorService,
-    private val onBatch: (EventBatch) -> Unit
+    private val errorConsumer: CheckedConsumer<Throwable> = CheckedConsumer {},
+    private val batchConsumer: CheckedConsumer<EventBatch>,
 ) : AutoCloseable {
 
     private val lock = ReentrantLock()
@@ -45,7 +47,7 @@ class SingleEventBatcher(
 
     private fun send() = lock.withLock<Unit> {
         if (batch.eventsCount == 0) return
-        batch.build().runCatching(onBatch)
+        batch.build().runCatching(batchConsumer::consume).onFailure(errorConsumer::consume)
         batch.clearEvents()
         future.cancel(false)
     }
