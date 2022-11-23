@@ -18,13 +18,13 @@ val RAW_DIRECTION_SELECTOR: (RawMessage.Builder) -> Any = { it.sessionAlias to i
 val DIRECTION_SELECTOR: (Message.Builder) -> Any = { it.sessionAlias to it.direction }
 
 class RawMessageBatcher(
-    maxBatchSize: Int = 1000,
     maxFlushTime: Long = 1000,
     private val batchSelector: (RawMessage.Builder) -> Any,
+    checkBatchLimit: (List<MessageGroup>, MessageGroup) -> Boolean,
     executor: ScheduledExecutorService,
     onError: (Throwable) -> Unit = {},
     onBatch: (MessageGroupBatch) -> Unit
-): Batcher<RawMessage.Builder>(maxBatchSize,maxFlushTime, executor, onError, onBatch) {
+): Batcher<RawMessage.Builder>(maxFlushTime, checkBatchLimit, executor, onError, onBatch) {
     override fun onMessage(message: RawMessage.Builder) {
         message.metadataBuilder.timestamp = Instant.now().toTimestamp()
         add(batchSelector(message), message.build())
@@ -32,13 +32,13 @@ class RawMessageBatcher(
 }
 
 class MessageBatcher(
-    maxBatchSize: Int = 1000,
     maxFlushTime: Long = 1000,
     private val batchSelector: (Message.Builder) -> Any,
+    checkBatchLimit: (List<MessageGroup>, MessageGroup) -> Boolean,
     executor: ScheduledExecutorService,
     onError: (Throwable) -> Unit = {},
     onBatch: (MessageGroupBatch) -> Unit
-): Batcher<Message.Builder>(maxBatchSize,maxFlushTime, executor, onError, onBatch) {
+): Batcher<Message.Builder>(maxFlushTime, checkBatchLimit, executor, onError, onBatch) {
     override fun onMessage(message: Message.Builder) {
         message.metadataBuilder.timestamp = Instant.now().toTimestamp()
         add(batchSelector(message), message.build())
@@ -46,8 +46,8 @@ class MessageBatcher(
 }
 
 abstract class Batcher<T>(
-    private val maxBatchSize: Int = 1000,
     private val maxFlushTime: Long = 1000,
+    private val checkBatchLimit: (List<MessageGroup>, MessageGroup) -> Boolean,
     private val executor: ScheduledExecutorService,
     private val onError: (Throwable) -> Unit = {},
     private val onBatch: (MessageGroupBatch) -> Unit
@@ -72,12 +72,16 @@ abstract class Batcher<T>(
         private var batch = MessageGroupBatch.newBuilder()
         private var future: Future<*> = CompletableFuture.completedFuture(null)
 
-        fun add(group: MessageGroup) = lock.withLock {
-            batch.addGroups(group)
-
-            when (batch.groupsCount) {
-                1 -> future = executor.schedule(::send, maxFlushTime, MILLISECONDS)
-                maxBatchSize -> send()
+        fun add(group: MessageGroup): Unit = lock.withLock {
+            when {
+                checkBatchLimit(batch.groupsList, group) -> {
+                    batch.addGroups(group)
+                    if (batch.groupsCount == 1) future = executor.schedule(::send, maxFlushTime, MILLISECONDS) else Unit
+                }
+                else -> {
+                    send()
+                    batch.addGroups(group)
+                }
             }
         }
 
