@@ -72,6 +72,27 @@ val AnyMessageOrBuilder.sessionAlias: String?
         else -> error("Unsupported message kind: $kindCase")
     }
 
+val AnyMessageOrBuilder.timestamp: Timestamp
+    get() = when {
+        hasMessage() -> message.timestamp
+        hasRawMessage() -> rawMessage.timestamp
+        else -> error("Unsupported message kind: $kindCase")
+    }
+
+val AnyMessage.book: String?
+    get() = when (kindCase) {
+        AnyMessage.KindCase.MESSAGE -> message.metadata.id.bookName.ifEmpty { null }
+        AnyMessage.KindCase.RAW_MESSAGE -> rawMessage.metadata.id.bookName.ifEmpty { null }
+        else -> error("Unsupported message kind: $kindCase")
+    }
+
+val AnyMessageOrBuilder.group: String?
+    get() = when {
+        hasMessage() -> message.sessionGroup ?: message.sessionAlias
+        hasRawMessage() -> rawMessage.sessionGroup ?: rawMessage.sessionAlias
+        else -> error("Unsupported message kind: $kindCase")
+    }
+
 var Message.Builder.sessionAlias: String?
     get() = metadata.id.connectionId.sessionAlias.ifEmpty { null }
     set(value) {
@@ -81,14 +102,38 @@ var Message.Builder.sessionAlias: String?
 val MessageOrBuilder.sessionAlias: String?
     get() = metadata.id.connectionId.sessionAlias.ifEmpty { null }
 
+val MessageOrBuilder.timestamp: Timestamp
+    get() = metadata.id.timestamp
+
 var RawMessage.Builder.sessionAlias: String?
     get() = metadata.id.connectionId.sessionAlias.ifEmpty { null }
     set(value) {
         metadataBuilder.idBuilder.connectionIdBuilder.sessionAlias = value
     }
 
+val MessageOrBuilder.sessionGroup: String?
+    get() = metadata.id.connectionId.sessionGroup.ifEmpty { null }
+
+var Message.Builder.sessionGroup: String?
+    get() = metadata.id.connectionId.sessionGroup.ifEmpty { null }
+    set(value) {
+        metadataBuilder.idBuilder.connectionIdBuilder.sessionGroup = value
+    }
+
 val RawMessageOrBuilder.sessionAlias: String?
     get() = metadata.id.connectionId.sessionAlias.ifEmpty { null }
+
+val RawMessageOrBuilder.timestamp: Timestamp
+    get() = metadata.id.timestamp
+
+val RawMessageOrBuilder.sessionGroup: String?
+    get() = metadata.id.connectionId.sessionGroup.ifEmpty { null }
+
+var RawMessage.Builder.sessionGroup: String?
+    get() = metadata.id.connectionId.sessionGroup.ifEmpty { null }
+    set(value) {
+        metadataBuilder.idBuilder.connectionIdBuilder.sessionGroup = value
+    }
 
 val MessageGroupOrBuilder.sessionAlias: String?
     get() {
