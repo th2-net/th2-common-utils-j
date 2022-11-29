@@ -6,6 +6,7 @@ import com.exactpro.th2.common.grpc.Direction
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.MessageGroupOrBuilder
+import com.exactpro.th2.common.grpc.MessageID
 import com.exactpro.th2.common.grpc.MessageOrBuilder
 import com.exactpro.th2.common.grpc.RawMessage
 import com.exactpro.th2.common.grpc.RawMessageOrBuilder
@@ -86,10 +87,17 @@ val AnyMessage.book: String?
         else -> error("Unsupported message kind: $kindCase")
     }
 
-val AnyMessageOrBuilder.group: String?
+val AnyMessageOrBuilder.sessionGroup: String?
     get() = when {
         hasMessage() -> message.sessionGroup ?: message.sessionAlias
         hasRawMessage() -> rawMessage.sessionGroup ?: rawMessage.sessionAlias
+        else -> error("Unsupported message kind: $kindCase")
+    }
+
+val AnyMessageOrBuilder.id: MessageID
+    get() = when {
+        hasMessage() -> message.id
+        hasRawMessage() -> rawMessage.id
         else -> error("Unsupported message kind: $kindCase")
     }
 
@@ -114,6 +122,9 @@ var RawMessage.Builder.sessionAlias: String?
 val MessageOrBuilder.sessionGroup: String?
     get() = metadata.id.connectionId.sessionGroup.ifEmpty { null }
 
+val MessageOrBuilder.id: MessageID
+    get() = metadata.id
+
 var Message.Builder.sessionGroup: String?
     get() = metadata.id.connectionId.sessionGroup.ifEmpty { null }
     set(value) {
@@ -128,6 +139,9 @@ val RawMessageOrBuilder.timestamp: Timestamp
 
 val RawMessageOrBuilder.sessionGroup: String?
     get() = metadata.id.connectionId.sessionGroup.ifEmpty { null }
+
+val RawMessageOrBuilder.id: MessageID
+    get() = metadata.id
 
 var RawMessage.Builder.sessionGroup: String?
     get() = metadata.id.connectionId.sessionGroup.ifEmpty { null }
