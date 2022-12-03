@@ -7,20 +7,27 @@ import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.MessageGroupOrBuilder
 import com.exactpro.th2.common.grpc.MessageID
+import com.exactpro.th2.common.grpc.MessageIDOrBuilder
 import com.exactpro.th2.common.grpc.MessageOrBuilder
 import com.exactpro.th2.common.grpc.RawMessage
 import com.exactpro.th2.common.grpc.RawMessageOrBuilder
+import com.exactpro.th2.common.utils.logTimestamp
 import com.google.protobuf.Duration
 import com.google.protobuf.Timestamp
 import com.google.protobuf.util.JsonFormat
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
-import java.util.Calendar
-import java.util.Date
-import java.util.TimeZone
+import java.util.*
 
 typealias JavaDuration = java.time.Duration
+
+val MessageIDOrBuilder.subsequence: List<Int>
+    get() = subsequenceList
+val MessageIDOrBuilder.sessionAlias: String?
+    get() = connectionId.sessionAlias.ifBlank { null }
+val MessageIDOrBuilder.logId: String
+    get() = "$bookName$sessionAlias:${direction.toString().lowercase(Locale.getDefault())}:${timestamp.logTimestamp}:$sequence${subsequence.joinToString("") { ".$it" }}"
 
 fun Message.toGroup(): MessageGroup = MessageGroup.newBuilder().add(this).build()
 fun RawMessage.toGroup(): MessageGroup = MessageGroup.newBuilder().add(this).build()
