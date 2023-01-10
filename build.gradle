@@ -192,3 +192,7 @@ compileKotlin {
 compileTestKotlin {
     kotlinOptions.jvmTarget = "11"
 }
+
+dependencyLocking {    
+    lockAllConfigurations()
+}
