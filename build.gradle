@@ -30,7 +30,7 @@ sourceCompatibility = 11
 targetCompatibility = 11
 
 ext {
-    junitVersion      = '5.8.2'
+    junitVersion      = '5.9.0'
 }
 
 repositories {
@@ -51,7 +51,7 @@ repositories {
 }
 
 java {
-    withJavadocJar()
+    //withJavadocJar()
     withSourcesJar()
 }
 
@@ -148,16 +148,13 @@ test {
 dependencies {
     api platform('com.exactpro.th2:bom:4.0.3')
     api 'com.exactpro.th2:grpc-common:3.12.0'
-
     implementation "org.jetbrains:annotations"
+    implementation "org.slf4j:slf4j-api"
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib:${kotlin_version}"
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${kotlin_version}"
 
     implementation 'io.prometheus:simpleclient'
-
-    implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.19.0'
-
     testImplementation 'org.mockito.kotlin:mockito-kotlin:4.0.0'
     testImplementation "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
     testImplementation "org.junit.jupiter:junit-jupiter-params:${junitVersion}"

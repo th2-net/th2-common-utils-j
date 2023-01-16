@@ -16,6 +16,7 @@
 
 package com.exactpro.th2.common.utils.event
 
+import SingleEventBatcher
 import com.exactpro.th2.common.grpc.Event
 import com.exactpro.th2.common.grpc.EventBatch
 import org.junit.jupiter.api.Assertions.assertEquals
