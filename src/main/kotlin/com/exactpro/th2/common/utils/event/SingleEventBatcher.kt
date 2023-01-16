@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.common.utils.event
-
 import com.exactpro.th2.common.grpc.Event
 import com.exactpro.th2.common.grpc.EventBatch
 import java.util.concurrent.CompletableFuture
