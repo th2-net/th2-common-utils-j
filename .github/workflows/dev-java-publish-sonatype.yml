@@ -3,15 +3,22 @@ name: Dev build and publish Java distributions to sonatype snapshot repository
 on:
   push:
     branches-ignore:
+<<<<<<< HEAD
       - master
       - version-*
       - dependabot*
+=======
+    - master
+    - version-*
+    - dependabot*
+>>>>>>> master
     # paths:
     # - gradle.properties
     paths-ignore:
       - README.md
 
 jobs:
+<<<<<<< HEAD
   build:
     runs-on: ubuntu-latest
 
@@ -51,3 +58,15 @@ jobs:
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SONATYPE_GPG_ARMORED_KEY }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SONATYPE_SIGNING_PASSWORD }} 
 
+=======
+  build-job:
+    uses: th2-net/.github/.github/workflows/compound-java-dev.yml@main
+    with:
+      build-target: 'Sonatype'
+      runsOn: ubuntu-latest
+    secrets:
+      sonatypeUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
+      sonatypePassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
+      sonatypeSigningKey: ${{ secrets.SONATYPE_GPG_ARMORED_KEY }}
+      sonatypeSigningPassword: ${{ secrets.SONATYPE_SIGNING_PASSWORD }}
+>>>>>>> master

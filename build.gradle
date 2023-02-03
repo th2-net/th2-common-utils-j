@@ -51,7 +51,7 @@ repositories {
 }
 
 java {
-    withJavadocJar()
+    //withJavadocJar()
     withSourcesJar()
 }
 
@@ -146,7 +146,7 @@ test {
 }
 
 dependencies {
-    api platform('com.exactpro.th2:bom:4.0.2')
+    api platform('com.exactpro.th2:bom:4.1.0')
     api 'com.exactpro.th2:grpc-common:4.0.0-th2-2150-books-pages-2635598705-SNAPSHOT'
 
     implementation "org.jetbrains:annotations"
@@ -188,4 +188,8 @@ compileKotlin {
 
 compileTestKotlin {
     kotlinOptions.jvmTarget = "11"
+}
+
+dependencyLocking {    
+    lockAllConfigurations()
 }

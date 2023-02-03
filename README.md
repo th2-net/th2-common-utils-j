@@ -13,3 +13,8 @@ The batcher collects single events inside and calls `onBatch` method when `maxFl
 ### Event batcher
 
 Collects and groups events by their parent-event-id and calls `onBatch` method when `maxFlushTime` for a group has elapsed or number of events in it has reached `maxBatchSize`.
+
+# Changelog
+
+## 1.0.0
+* book&pages support
