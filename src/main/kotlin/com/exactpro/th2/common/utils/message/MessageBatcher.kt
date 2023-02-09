@@ -5,6 +5,7 @@ import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.MessageGroupBatch
 import com.exactpro.th2.common.grpc.RawMessage
+import com.exactpro.th2.common.utils.CheckedConsumer
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -22,9 +23,9 @@ class RawMessageBatcher(
     maxFlushTime: Long = 1000,
     private val batchSelector: (RawMessage.Builder) -> Any,
     executor: ScheduledExecutorService,
-    onError: (Throwable) -> Unit = {},
-    onBatch: (MessageGroupBatch) -> Unit
-): Batcher<RawMessage.Builder>(maxBatchSize,maxFlushTime, executor, onError, onBatch) {
+    errorConsumer: CheckedConsumer<Throwable> = CheckedConsumer {},
+    batchConsumer: CheckedConsumer<MessageGroupBatch>,
+) : Batcher<RawMessage.Builder>(maxBatchSize, maxFlushTime, executor, errorConsumer, batchConsumer) {
     override fun onMessage(message: RawMessage.Builder) {
         message.metadataBuilder.timestamp = Instant.now().toTimestamp()
         add(batchSelector(message), message.build())
@@ -36,9 +37,9 @@ class MessageBatcher(
     maxFlushTime: Long = 1000,
     private val batchSelector: (Message.Builder) -> Any,
     executor: ScheduledExecutorService,
-    onError: (Throwable) -> Unit = {},
-    onBatch: (MessageGroupBatch) -> Unit
-): Batcher<Message.Builder>(maxBatchSize,maxFlushTime, executor, onError, onBatch) {
+    errorConsumer: CheckedConsumer<Throwable> = CheckedConsumer {},
+    batchConsumer: CheckedConsumer<MessageGroupBatch>,
+) : Batcher<Message.Builder>(maxBatchSize, maxFlushTime, executor, errorConsumer, batchConsumer) {
     override fun onMessage(message: Message.Builder) {
         message.metadataBuilder.timestamp = Instant.now().toTimestamp()
         add(batchSelector(message), message.build())
@@ -49,8 +50,8 @@ abstract class Batcher<T>(
     private val maxBatchSize: Int = 1000,
     private val maxFlushTime: Long = 1000,
     private val executor: ScheduledExecutorService,
-    private val onError: (Throwable) -> Unit = {},
-    private val onBatch: (MessageGroupBatch) -> Unit
+    private val errorConsumer: CheckedConsumer<Throwable> = CheckedConsumer {},
+    private val batchConsumer: CheckedConsumer<MessageGroupBatch>,
 ) : AutoCloseable {
     private val batches = ConcurrentHashMap<Any, Batch>()
 
@@ -83,7 +84,7 @@ abstract class Batcher<T>(
 
         private fun send() = lock.withLock<Unit> {
             if (batch.groupsCount == 0) return
-            runCatching { onBatch(batch.build()) }.onFailure(onError)
+            runCatching { batchConsumer.consume(batch.build()) }.onFailure(errorConsumer::consume)
             batch.clearGroups()
             future.cancel(false)
         }

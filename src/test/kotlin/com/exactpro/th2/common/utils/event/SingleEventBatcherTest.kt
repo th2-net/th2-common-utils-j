@@ -16,10 +16,10 @@
 
 package com.exactpro.th2.common.utils.event
 
-import SingleEventBatcher
 import com.exactpro.th2.common.grpc.Event
 import com.exactpro.th2.common.grpc.EventBatch
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import org.mockito.kotlin.any
@@ -44,7 +44,7 @@ class SingleEventBatcherTest {
         val executor = mock<ScheduledExecutorService> {
             on { schedule(any(), any(), any()) }.thenReturn(future)
         }
-        SingleEventBatcher(2, Long.MAX_VALUE, executor, onBatch).use { batcher ->
+        SingleEventBatcher(2, Long.MAX_VALUE, executor, { fail() }, onBatch).use { batcher ->
             batcher.onEvent(EVENT)
             verify(onBatch, times(0))(any())
             verify(executor, times(1)).schedule(any(), any(), any())
@@ -77,7 +77,7 @@ class SingleEventBatcherTest {
             on { schedule(runnableCaptor.capture(), eq(maxFlushTime), eq(TimeUnit.MILLISECONDS)) }.thenReturn(future)
         }
 
-        SingleEventBatcher(Int.MAX_VALUE, maxFlushTime, executor, onBatch).use { batcher ->
+        SingleEventBatcher(Int.MAX_VALUE, maxFlushTime, executor, { fail() }, onBatch).use { batcher ->
             batcher.onEvent(EVENT)
             verify(onBatch, times(0))(any())
             verify(future, times(0)).cancel(any())
