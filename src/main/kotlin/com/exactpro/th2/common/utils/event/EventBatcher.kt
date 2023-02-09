@@ -33,7 +33,8 @@ import kotlin.concurrent.withLock
  * for a group has elapsed or number of events in it has reached `maxBatchSize`.
  */
 class EventBatcher(
-    private val maxBatchSize: Int = 100,
+    private val maxBatchSizeInBytes: Long = 1_024 * 1_024,
+    private val maxBatchSizeInItems: Int = 100,
     private val maxFlushTime: Long = 1000,
     private val executor: ScheduledExecutorService,
     private val batchConsumer: CheckedConsumer<EventBatch>,
@@ -51,24 +52,68 @@ class EventBatcher(
     private inner class Batch : AutoCloseable {
         private val lock = ReentrantLock()
         private var batch = EventBatch.newBuilder()
+        private var batchSizeInBytes = BATCH_LEN_CONST
         private var future: Future<*> = CompletableFuture.completedFuture(null)
 
         fun add(event: Event) = lock.withLock {
+            val eventSizeInBytes = event.calculateSizeInBytes()
+            if (batchSizeInBytes + eventSizeInBytes > maxBatchSizeInBytes) {
+                send()
+            }
+
             batch.addEvents(event)
+            batchSizeInBytes += eventSizeInBytes
 
             when (batch.eventsCount) {
                 1 -> future = executor.schedule(::send, maxFlushTime, MILLISECONDS)
-                maxBatchSize -> send()
+                maxBatchSizeInItems -> send()
             }
         }
+
+        override fun close() = send()
 
         private fun send() = lock.withLock<Unit> {
             if (batch.eventsCount == 0) return
             batch.build().runCatching(batchConsumer::consume)
             batch.clearEvents()
+            batchSizeInBytes = BATCH_LEN_CONST
             future.cancel(false)
         }
+    }
 
-        override fun close() = send()
+    companion object {
+        /**
+		* 4 - magic number
+		* 1 - protocol version
+		* 4 - message sizes
+		* Collapsed constant = 9
+	    */
+        private const val BATCH_LEN_CONST = 9L
+
+        /**
+        * 2 - magic number
+        * 4 - id length
+        * 4 - name length
+        * 4 - type length
+        * 4 - parent id length
+        * 4 + 8 = Instant (start timestamp) long (seconds) + int (nanos)
+        * 4 + 8 = Instant (end timestamp) long (seconds) + int (nanos)
+        * 1 = is success
+        * 4 = body len
+        * ===
+        * 47
+        */
+        private const val EVENT_RECORD_CONST = 47L
+        private const val BATCH_LENGTH_IN_BATCH = 4L
+        /**
+         * This logic is copied the estore project.
+         */
+        internal fun Event.calculateSizeInBytes(): Long = EVENT_RECORD_CONST +
+                BATCH_LENGTH_IN_BATCH +
+                id.id.length +
+                parentId.id.length +
+                name.length +
+                type.length +
+                body.size()
     }
 }
