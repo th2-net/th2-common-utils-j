@@ -6,20 +6,28 @@ import com.exactpro.th2.common.grpc.Direction
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.MessageGroupOrBuilder
+import com.exactpro.th2.common.grpc.MessageID
+import com.exactpro.th2.common.grpc.MessageIDOrBuilder
 import com.exactpro.th2.common.grpc.MessageOrBuilder
 import com.exactpro.th2.common.grpc.RawMessage
 import com.exactpro.th2.common.grpc.RawMessageOrBuilder
+import com.exactpro.th2.common.utils.logTimestamp
 import com.google.protobuf.Duration
 import com.google.protobuf.Timestamp
 import com.google.protobuf.util.JsonFormat
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
-import java.util.Calendar
-import java.util.Date
-import java.util.TimeZone
+import java.util.*
 
 typealias JavaDuration = java.time.Duration
+
+val MessageIDOrBuilder.subsequence: List<Int>
+    get() = subsequenceList
+val MessageIDOrBuilder.sessionAlias: String?
+    get() = connectionId.sessionAlias.ifBlank { null }
+val MessageIDOrBuilder.logId: String
+    get() = "$bookName$sessionAlias:${direction.toString().lowercase(Locale.getDefault())}:${timestamp.logTimestamp}:$sequence${subsequence.joinToString("") { ".$it" }}"
 
 fun Message.toGroup(): MessageGroup = MessageGroup.newBuilder().add(this).build()
 fun RawMessage.toGroup(): MessageGroup = MessageGroup.newBuilder().add(this).build()
@@ -72,6 +80,34 @@ val AnyMessageOrBuilder.sessionAlias: String?
         else -> error("Unsupported message kind: $kindCase")
     }
 
+val AnyMessageOrBuilder.timestamp: Timestamp
+    get() = when {
+        hasMessage() -> message.timestamp
+        hasRawMessage() -> rawMessage.timestamp
+        else -> error("Unsupported message kind: $kindCase")
+    }
+
+val AnyMessage.book: String?
+    get() = when (kindCase) {
+        AnyMessage.KindCase.MESSAGE -> message.metadata.id.bookName.ifEmpty { null }
+        AnyMessage.KindCase.RAW_MESSAGE -> rawMessage.metadata.id.bookName.ifEmpty { null }
+        else -> error("Unsupported message kind: $kindCase")
+    }
+
+val AnyMessageOrBuilder.sessionGroup: String?
+    get() = when {
+        hasMessage() -> message.sessionGroup ?: message.sessionAlias
+        hasRawMessage() -> rawMessage.sessionGroup ?: rawMessage.sessionAlias
+        else -> error("Unsupported message kind: $kindCase")
+    }
+
+val AnyMessageOrBuilder.id: MessageID
+    get() = when {
+        hasMessage() -> message.id
+        hasRawMessage() -> rawMessage.id
+        else -> error("Unsupported message kind: $kindCase")
+    }
+
 var Message.Builder.sessionAlias: String?
     get() = metadata.id.connectionId.sessionAlias.ifEmpty { null }
     set(value) {
@@ -81,14 +117,44 @@ var Message.Builder.sessionAlias: String?
 val MessageOrBuilder.sessionAlias: String?
     get() = metadata.id.connectionId.sessionAlias.ifEmpty { null }
 
+val MessageOrBuilder.timestamp: Timestamp
+    get() = metadata.id.timestamp
+
 var RawMessage.Builder.sessionAlias: String?
     get() = metadata.id.connectionId.sessionAlias.ifEmpty { null }
     set(value) {
         metadataBuilder.idBuilder.connectionIdBuilder.sessionAlias = value
     }
 
+val MessageOrBuilder.sessionGroup: String?
+    get() = metadata.id.connectionId.sessionGroup.ifEmpty { null }
+
+val MessageOrBuilder.id: MessageID
+    get() = metadata.id
+
+var Message.Builder.sessionGroup: String?
+    get() = metadata.id.connectionId.sessionGroup.ifEmpty { null }
+    set(value) {
+        metadataBuilder.idBuilder.connectionIdBuilder.sessionGroup = value
+    }
+
 val RawMessageOrBuilder.sessionAlias: String?
     get() = metadata.id.connectionId.sessionAlias.ifEmpty { null }
+
+val RawMessageOrBuilder.timestamp: Timestamp
+    get() = metadata.id.timestamp
+
+val RawMessageOrBuilder.sessionGroup: String?
+    get() = metadata.id.connectionId.sessionGroup.ifEmpty { null }
+
+val RawMessageOrBuilder.id: MessageID
+    get() = metadata.id
+
+var RawMessage.Builder.sessionGroup: String?
+    get() = metadata.id.connectionId.sessionGroup.ifEmpty { null }
+    set(value) {
+        metadataBuilder.idBuilder.connectionIdBuilder.sessionGroup = value
+    }
 
 val MessageGroupOrBuilder.sessionAlias: String?
     get() {
