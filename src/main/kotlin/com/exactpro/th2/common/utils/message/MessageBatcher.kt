@@ -26,7 +26,7 @@ class RawMessageBatcher(
     onBatch: (MessageGroupBatch) -> Unit
 ): Batcher<RawMessage.Builder>(maxBatchSize,maxFlushTime, executor, onError, onBatch) {
     override fun onMessage(message: RawMessage.Builder) {
-        message.metadataBuilder.timestamp = Instant.now().toTimestamp()
+        message.metadataBuilder.idBuilder.timestamp = Instant.now().toTimestamp()
         add(batchSelector(message), message.build())
     }
 }
@@ -40,7 +40,7 @@ class MessageBatcher(
     onBatch: (MessageGroupBatch) -> Unit
 ): Batcher<Message.Builder>(maxBatchSize,maxFlushTime, executor, onError, onBatch) {
     override fun onMessage(message: Message.Builder) {
-        message.metadataBuilder.timestamp = Instant.now().toTimestamp()
+        message.metadataBuilder.idBuilder.timestamp = Instant.now().toTimestamp()
         add(batchSelector(message), message.build())
     }
 }

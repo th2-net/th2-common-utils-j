@@ -147,7 +147,7 @@ test {
 
 dependencies {
     api platform('com.exactpro.th2:bom:4.2.0')
-    api 'com.exactpro.th2:grpc-common:3.12.0'
+    api 'com.exactpro.th2:grpc-common:4.0.0-th2-2150-books-pages-2635598705-SNAPSHOT'
 
     implementation "org.jetbrains:annotations"
     implementation "org.slf4j:slf4j-api"
@@ -188,4 +188,8 @@ compileKotlin {
 
 compileTestKotlin {
     kotlinOptions.jvmTarget = "11"
+}
+
+dependencyLocking {
+    lockAllConfigurations()
 }
