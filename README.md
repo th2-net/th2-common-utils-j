@@ -16,5 +16,10 @@ Collects and groups events by their parent-event-id and calls `onBatch` method w
 
 # Changelog
 
+## 2.0.0
+* Migrated to book & page concept
+* Migrated to bom:4.2.0
+* Migrated to grpc-common:4.1.1-dev
+
 ## 1.0.0
 * book&pages support
