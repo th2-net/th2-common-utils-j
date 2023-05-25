@@ -30,7 +30,7 @@ sourceCompatibility = 11
 targetCompatibility = 11
 
 ext {
-    junitVersion      = '5.9.0'
+    junitVersion = '5.9.0'
 }
 
 repositories {
@@ -68,13 +68,14 @@ tasks.withType(PublishToMavenRepository) {
     }
 }
 tasks.withType(Sign) {
-    onlyIf { project.hasProperty('signingKey') &&
-            project.hasProperty('signingPassword')
+    onlyIf {
+        project.hasProperty('signingKey') &&
+                project.hasProperty('signingPassword')
     }
 }
 // disable running task 'initializeSonatypeStagingRepository' on a gitlab
-tasks.whenTaskAdded {task ->
-    if(task.name.equals('initializeSonatypeStagingRepository') &&
+tasks.whenTaskAdded { task ->
+    if (task.name.equals('initializeSonatypeStagingRepository') &&
             !(project.hasProperty('sonatypeUsername') && project.hasProperty('sonatypePassword'))
     ) {
         task.enabled = false
@@ -145,9 +146,19 @@ test {
     useJUnitPlatform()
 }
 
+configurations {
+    testCompileOnly.extendsFrom compileOnly
+    testRuntimeOnly.extendsFrom compileOnly
+}
+
 dependencies {
     api platform('com.exactpro.th2:bom:4.2.0')
     api 'com.exactpro.th2:grpc-common:4.1.1-dev'
+
+    // TODO: Use this dependency util extract th2 transport into separate library
+    compileOnly('com.exactpro.th2:common:5.2.0-json-raw-body-5080623849-ed74414-SNAPSHOT') {
+        description 'Transport message classes are used in utilities methods'
+    }
 
     implementation "org.jetbrains:annotations"
     implementation "org.slf4j:slf4j-api"
@@ -157,6 +168,9 @@ dependencies {
 
     implementation 'io.prometheus:simpleclient'
 
+    testImplementation("com.fasterxml.jackson.core:jackson-databind") {
+        because('provide ability to use object mapper in components')
+    }
     testImplementation 'org.mockito.kotlin:mockito-kotlin:4.0.0'
     testImplementation "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
     testImplementation "org.junit.jupiter:junit-jupiter-params:${junitVersion}"
@@ -167,13 +181,13 @@ dependencies {
 jar {
     manifest {
         attributes(
-                'Created-By':               "${System.getProperty('java.version')} (${System.getProperty('java.vendor')})",
-                'Specification-Title':      '',
-                'Specification-Vendor':     'Exactpro Systems LLC',
-                'Implementation-Title':     project.archivesBaseName,
-                'Implementation-Vendor':    'Exactpro Systems LLC',
+                'Created-By': "${System.getProperty('java.version')} (${System.getProperty('java.vendor')})",
+                'Specification-Title': '',
+                'Specification-Vendor': 'Exactpro Systems LLC',
+                'Implementation-Title': project.archivesBaseName,
+                'Implementation-Vendor': 'Exactpro Systems LLC',
                 'Implementation-Vendor-Id': 'com.exactpro',
-                'Implementation-Version':   project.version
+                'Implementation-Version': project.version
         )
     }
 }
