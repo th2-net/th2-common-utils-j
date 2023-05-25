@@ -61,13 +61,17 @@ class TransportMessageWrapperTest {
             }
         }.build(), "test-book", "test-session-group")
 
+        assertNull(wrapper.getSimple(FAKE_FIELD))
         assertNull(wrapper.getSimple(NULL_FIELD))
         assertNull(wrapper.getSimple(LIST_SIMPLE_FIELD, "1"))
         assertNull(wrapper.getSimple(LIST_MESSAGES_FIELD, "0", NULL_FIELD))
+        assertNull(wrapper.getSimple(LIST_MESSAGES_FIELD, "0", FAKE_FIELD))
         assertNull(wrapper.getSimple(LIST_MESSAGES_FIELD, "1"))
         assertNull(wrapper.getSimple(MAP_FIELD, NULL_FIELD))
+        assertNull(wrapper.getSimple(MAP_FIELD, FAKE_FIELD))
         assertNull(wrapper.getSimple(MAP_FIELD, LIST_SIMPLE_FIELD, "1"))
         assertNull(wrapper.getSimple(MAP_FIELD, "sub-map", NULL_FIELD))
+        assertNull(wrapper.getSimple(MAP_FIELD, "sub-map", FAKE_FIELD))
 
         assertEquals(TEST_SIMPLE, wrapper.getSimple(SIMPLE_FIELD))
         assertEquals(TEST_SIMPLE, wrapper.getSimple(LIST_SIMPLE_FIELD, "0"))
@@ -95,6 +99,7 @@ class TransportMessageWrapperTest {
         private const val TEST_FLOAT = 1234512345678.9
 
         private const val NULL_FIELD = "null"
+        private const val FAKE_FIELD = "Fake"
         private const val SIMPLE_FIELD = "simple"
         private const val INT_FIELD = "int"
         private const val FLOAT_FIELD = "float"

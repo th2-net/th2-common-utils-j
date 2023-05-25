@@ -60,33 +60,31 @@ class ProtoMessageWrapper(
          * @throws [FieldNotFoundException] if message doesn't include full path or message structure doesn't match to path
          */
         @Throws(FieldNotFoundException::class)
-        fun Message.getField(vararg path: String): Value = runCatching {
+        fun Message.getField(vararg path: String): Value? = runCatching {
             require(path.isNotEmpty()) {
                 "Path to field can't be empty"
             }
-            var currentValue: Value = path.first().run {
-                requireNotNull(fieldsMap[this]) {
-                    "Field $this is not found in message: ${TextFormat.shortDebugString(this@getField)}"
-                }
-            }
+            var currentValue: Value? = fieldsMap[path.first()]
 
             path.asSequence().drop(1).forEachIndexed { pathIndex, name ->
-                currentValue = requireNotNull(when (currentValue.kindCase) {
-                    Value.KindCase.MESSAGE_VALUE -> currentValue.messageValue.fieldsMap[name]
-                    Value.KindCase.LIST_VALUE -> {
-                        val index = requireNotNull(name.toIntOrNull()) {
-                            "$name path element can't be path as number, value: ${currentValue.toJson()}, path: ${path.contentToString()}, index: $pathIndex"
+                currentValue?.let {
+                    currentValue = when (it.kindCase) {
+                        Value.KindCase.MESSAGE_VALUE -> it.messageValue.fieldsMap[name]
+                        Value.KindCase.LIST_VALUE -> {
+                            val index = requireNotNull(name.toIntOrNull()) {
+                                "'$name' path element can't be path as number, value: ${toJson()}, path: ${path.contentToString()}, index: ${pathIndex + 1}"
+                            }
+                            require(index >= 0 && it.listValue.valuesCount > index) {
+                                "'$index' index should be positive or zero and less then '${it.listValue.valuesCount}' list size, value: ${toJson()}, path: ${path.contentToString()}, index: ${pathIndex + 1}"
+                            }
+                            it.listValue.getValues(index)
                         }
-                        require(index >= 0 && currentValue.listValue.valuesCount > index) {
-                            "'$index' index should be positive or zero and less then ${currentValue.listValue.valuesCount}, value: ${currentValue.toJson()}, path: ${path.contentToString()}, index: $pathIndex"
-                        }
-                        currentValue.listValue.getValues(index)
-                    }
 
-                    else -> error("Field $name can't be got from unknown value: ${currentValue.toJson()}, path: ${path.contentToString()}, index: $pathIndex")
-                }) {
-                    "Field $name is not found, value: ${currentValue.toJson()}, path: ${path.contentToString()}, index: $pathIndex"
+                        else -> error("Field '$name' can't be got from unknown value: ${toJson()}, path: ${path.contentToString()}, index: ${pathIndex + 1}")
+                    }
                 }
+                    ?: error("Field '$name' is not found because '${path[pathIndex]}' previous field is null, path: ${path.contentToString()}, index: ${pathIndex + 1}")
+
             }
             currentValue
         }.onFailure {
@@ -96,7 +94,7 @@ class ProtoMessageWrapper(
         }.getOrThrow()
 
         @Throws(FieldNotFoundException::class)
-        fun Message.getSimple(vararg path: String): String? = getField(*path).run {
+        fun Message.getSimple(vararg path: String): String? = getField(*path)?.run {
             when (kindCase) {
                 Value.KindCase.NULL_VALUE -> null
                 Value.KindCase.SIMPLE_VALUE -> simpleValue

@@ -54,13 +54,17 @@ class ProtoMessageWrapperTest {
             )
         }.build())
 
+        Assertions.assertNull(wrapper.getSimple(FAKE_FIELD))
         Assertions.assertNull(wrapper.getSimple(NULL_FIELD))
         Assertions.assertNull(wrapper.getSimple("list-simple", "1"))
         Assertions.assertNull(wrapper.getSimple("list-messages", "0", NULL_FIELD))
+        Assertions.assertNull(wrapper.getSimple("list-messages", "0", FAKE_FIELD))
         Assertions.assertNull(wrapper.getSimple("list-messages", "1"))
         Assertions.assertNull(wrapper.getSimple("map", NULL_FIELD))
+        Assertions.assertNull(wrapper.getSimple("map", FAKE_FIELD))
         Assertions.assertNull(wrapper.getSimple("map", "list-simple", "1"))
         Assertions.assertNull(wrapper.getSimple("map", "sub-map", NULL_FIELD))
+        Assertions.assertNull(wrapper.getSimple("map", "sub-map", FAKE_FIELD))
 
         Assertions.assertEquals(TEST_SIMPLE, wrapper.getSimple(SIMPLE_FIELD))
         Assertions.assertEquals(TEST_SIMPLE, wrapper.getSimple("list-simple", "0"))
@@ -74,6 +78,7 @@ class ProtoMessageWrapperTest {
         private const val TEST_SIMPLE = "test-simple"
 
         private const val NULL_FIELD = "null"
+        private const val FAKE_FIELD = "Fake"
         private const val SIMPLE_FIELD = "simple"
     }
 }

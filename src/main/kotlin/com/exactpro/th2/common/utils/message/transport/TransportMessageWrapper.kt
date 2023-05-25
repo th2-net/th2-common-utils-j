@@ -66,16 +66,16 @@ class TransportMessageWrapper(
                     is Map<*, *> -> (currentValue as Map<*, *>)[name]
                     is List<*> -> {
                         val index = requireNotNull(name.toIntOrNull()) {
-                            "'$name' path element can't be path as number, value: ${currentValue}, path: ${path.contentToString()}, index: $pathIndex"
+                            "'$name' path element can't be path as number, value: ${currentValue}, path: ${path.contentToString()}, index: ${pathIndex + 1}"
                         }
                         val casted = (currentValue as List<*>)
                         require(index >= 0 && casted.size > index) {
-                            "'$index' index should be positive or zero and less then ${casted.size}, value: ${currentValue}, path: ${path.contentToString()}, index: $pathIndex"
+                            "'$index' index should be positive or zero and less then '${casted.size}' list size, value: ${currentValue}, path: ${path.contentToString()}, index: ${pathIndex + 1}"
                         }
                         casted[index]
                     }
 
-                    else -> error("Field '$name' can't be got from unknown value: ${currentValue}, path: ${path.contentToString()}, index: $pathIndex")
+                    else -> error("Field '$name' can't be got from unknown value: ${currentValue}, path: ${path.contentToString()}, index: ${pathIndex + 1}")
                 }
             }
             currentValue
