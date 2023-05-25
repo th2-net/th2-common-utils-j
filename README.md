@@ -22,6 +22,7 @@ elapsed or number of events in it has reached `maxBatchSize`.
 
 * Added utility method for th2 transport protocol
 * Added message batcher for transport protocol
+* Configured vulnerability checks
 
 ## 2.0.0
 
