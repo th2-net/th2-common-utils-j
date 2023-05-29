@@ -15,17 +15,112 @@
  */
 package com.exactpro.th2.common.utils.message.transport
 
+import com.exactpro.th2.common.grpc.Message
+import com.exactpro.th2.common.message.addField
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Direction
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.EventId
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage
+import com.exactpro.th2.common.utils.message.toTimestamp
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import java.time.Instant
+import kotlin.random.Random
 
 class MessageUtilsTest {
 
     @Test
+    fun `transport to proto`() {
+        val timestampValue = Instant.now()
+        val sequenceValue = Random.nextLong()
+        val subsequenceValue = (1..Random.nextInt(2, 5)).map { Random.nextInt() }
+        val transport = ParsedMessage.builder().apply {
+            idBuilder().apply {
+                setSessionAlias(SESSION_ALIAS)
+                setDirection(Direction.OUTGOING)
+                setTimestamp(timestampValue)
+                setSequence(sequenceValue)
+                setSubsequence(subsequenceValue)
+            }
+            setEventId(EventId.builder().apply {
+                setId(EVENT_ID)
+                setBook(BOOK_NAME)
+                setScope(SCOPE)
+                setTimestamp(timestampValue)
+            }.build())
+            setProtocol(PROTOCOL)
+            setType(MESSAGE_TYPE)
+            metadataBuilder().apply {
+                put("test-property", "test-property-value")
+            }
+            bodyBuilder().apply {
+                put("null", null)
+                put("simple", "test-simple")
+                put("list", listOf("simple", null))
+                put(
+                    "map", mapOf(
+                        "null" to null,
+                        "simple" to "test-sub-simple",
+                        "list" to listOf("simple", null),
+                        "map" to mapOf(
+                            "null" to null,
+                            "simple" to "test-sub-sub-simple",
+                        )
+                    )
+                )
+            }
+        }.build()
+        val expectedProto = Message.newBuilder().apply {
+            metadataBuilder.apply {
+                idBuilder.apply {
+                    bookName = BOOK_NAME
+                    connectionIdBuilder.apply {
+                        sessionGroup = SESSION_GROUP
+                        sessionAlias = SESSION_ALIAS
+                    }
+                    direction = com.exactpro.th2.common.grpc.Direction.SECOND
+                    timestamp = timestampValue.toTimestamp()
+                    sequence = sequenceValue
+                    addAllSubsequence(subsequenceValue)
+                }
+                parentEventIdBuilder.apply {
+                    bookName = BOOK_NAME
+                    scope = SCOPE
+                    startTimestamp = timestampValue.toTimestamp()
+                    id = EVENT_ID
+                }
+                protocol = PROTOCOL
+                messageType = MESSAGE_TYPE
+                putProperties("test-property", "test-property-value")
+            }
+            addField("null", null)
+            addField("simple", "test-simple")
+            addField("list", listOf("simple", null))
+            addField(
+                "map", mapOf(
+                    "null" to null,
+                    "simple" to "test-sub-simple",
+                    "list" to listOf("simple", null),
+                    "map" to mapOf(
+                        "null" to null,
+                        "simple" to "test-sub-sub-simple",
+                    )
+                )
+            )
+        }.build()
+
+        assertEquals(
+            expectedProto, transport.toProto(
+                BOOK_NAME,
+                SESSION_GROUP
+            )
+        )
+    }
+
+    @Test
     fun toTreeTable() {
         val transport = ParsedMessage.builder().apply {
-            setType("test-type")
+            setType(MESSAGE_TYPE)
             bodyBuilder().apply {
                 put("null", null)
                 put("simple", "test-simple")
@@ -55,33 +150,33 @@ class MessageUtilsTest {
             {
               "type": "treeTable",
               "rows": {
-                "null": { "type": "row", "columns": { "fieldValue": "null" } },
+                "null": { "type": "row", "columns": { "fieldValue": null } },
                 "simple": { "type": "row", "columns": { "fieldValue": "test-simple" } },
                 "float": { "type": "row", "columns": { "fieldValue": "12345.12345" } },
                 "list": {
                   "type": "collection",
                   "rows": {
                     "0": { "type": "row", "columns": { "fieldValue": "simple" } },
-                    "1": { "type": "row", "columns": { "fieldValue": "null" } }
+                    "1": { "type": "row", "columns": { "fieldValue": null } }
                   }
                 },
                 "map": {
                   "type": "collection",
                   "rows": {
-                    "null": { "type": "row", "columns": { "fieldValue": "null" } },
+                    "null": { "type": "row", "columns": { "fieldValue": null } },
                     "simple": { "type": "row", "columns": { "fieldValue": "test-sub-simple" } },
                     "float": { "type": "row", "columns": { "fieldValue": "12345.12345" } },
                     "list": {
                       "type": "collection",
                       "rows": {
                         "0": { "type": "row", "columns": { "fieldValue": "simple" } },
-                        "1": { "type": "row", "columns": { "fieldValue": "null" } }
+                        "1": { "type": "row", "columns": { "fieldValue": null } }
                       }
                     },
                     "map": {
                       "type": "collection",
                       "rows": {
-                        "null": { "type": "row", "columns": { "fieldValue": "null" } },
+                        "null": { "type": "row", "columns": { "fieldValue": null } },
                         "simple": { "type": "row", "columns": { "fieldValue": "test-sub-sub-simple" } },
                         "float": { "type": "row", "columns": { "fieldValue": "12345.12345" } },
                         "int": { "type": "row", "columns": { "fieldValue": "12345" } }
@@ -97,33 +192,15 @@ class MessageUtilsTest {
         )
     }
 
-    @Test
-    fun `addMetadataProperty test`() {
-        val message = ParsedMessage.builder()
-            .setType("test")
-            .setBody(mapOf("test" to null))
-            .addMetadataProperty("A", "a")
-            .addMetadataProperty("B", "b")
-            .build()
-
-        assertEquals("a", message.metadata["A"])
-        assertEquals("b", message.metadata["B"])
-    }
-
-    @Test
-    fun `addField test`() {
-        val message = ParsedMessage.builder()
-            .setType("test")
-            .addField("A", "a")
-            .addField("B", "b")
-            .build()
-
-        assertEquals("a", message.body["A"])
-        assertEquals("b", message.body["B"])
-    }
-
-
     companion object {
+        private const val BOOK_NAME = "test-book"
+        private const val SESSION_GROUP = "test-session-group"
+        private const val SESSION_ALIAS = "test-session-alias"
+        private const val SCOPE = "test-scope"
+        private const val EVENT_ID = "test-id"
+        private const val PROTOCOL = "test-protocol"
+        private const val MESSAGE_TYPE = "test-type"
+
         val OBJECT_MAPPER = ObjectMapper()
     }
 }

@@ -237,6 +237,10 @@ fun Message.toTreeTable(): TreeTable = TreeTableBuilder().apply {
 }.build()
 
 private fun Value.toTreeTableEntry(): TreeTableEntry = when {
+    hasNullValue() -> RowBuilder()
+        .column(MessageTableColumn(null))
+        .build()
+
     hasMessageValue() -> CollectionBuilder().apply {
         for ((key, value) in messageValue.fieldsMap) {
             row(key, value.toTreeTableEntry())
@@ -250,12 +254,14 @@ private fun Value.toTreeTableEntry(): TreeTableEntry = when {
         }
     }.build()
 
-    else -> RowBuilder()
+    hasSimpleValue() -> RowBuilder()
         .column(MessageTableColumn(simpleValue))
         .build()
+
+    else -> error("Unsupported type, value ${toJson()}")
 }
 
-data class MessageTableColumn(val fieldValue: String) : IColumn
+data class MessageTableColumn(val fieldValue: String?) : IColumn
 
 fun MessageID.toTransport(): MessageId =
     MessageId(connectionId.sessionAlias, direction.transport, sequence, timestamp.toInstant(), subsequenceList)

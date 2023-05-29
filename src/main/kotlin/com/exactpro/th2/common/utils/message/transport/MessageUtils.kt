@@ -75,12 +75,11 @@ fun ParsedMessage.toTreeTable(): TreeTable = TreeTableBuilder().apply {
 }.build()
 
 private fun Any?.toTreeTableEntry(): TreeTableEntry {
-    if (this == null) {
-        return RowBuilder()
-            .column(MessageTableColumn("null"))
-            .build()
-    }
     return when (this) {
+        null -> RowBuilder()
+            .column(MessageTableColumn(null))
+            .build()
+
         is Map<*, *> -> {
             CollectionBuilder().apply {
                 forEach { (key, value) ->
@@ -113,14 +112,4 @@ fun Number.convertToString(): String = when (this) {
 
     is BigDecimal -> stripTrailingZeros().toPlainString()
     else -> error("Unsupported ${this::class.simpleName} number type, value $this")
-}
-
-@Suppress("UNCHECKED_CAST")
-fun <T : Message.Builder<T>> Message.Builder<T>.addMetadataProperty(key: String, value: String): T {
-    metadataBuilder().put(key, value)
-    return this as T
-}
-
-fun ParsedMessage.FromMapBuilder.addField(name: String, value: Any?): ParsedMessage.FromMapBuilder = apply {
-    bodyBuilder().put(name, value)
 }

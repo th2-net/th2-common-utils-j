@@ -25,7 +25,7 @@ class TransportMessageWrapperTest {
     @Test
     fun `get simple test`() {
         val wrapper = TransportMessageWrapper(ParsedMessage.builder().apply {
-            setType("test-type")
+            setType(MESSAGE_TYPE)
             bodyBuilder().apply {
                 put(NULL_FIELD, null)
                 put(SIMPLE_FIELD, TEST_SIMPLE)
@@ -94,6 +94,8 @@ class TransportMessageWrapperTest {
     }
 
     companion object {
+        private const val MESSAGE_TYPE = "test-type"
+
         private const val TEST_SIMPLE = "test-simple"
         private const val TEST_INT = 12345
         private const val TEST_FLOAT = 1234512345678.9
