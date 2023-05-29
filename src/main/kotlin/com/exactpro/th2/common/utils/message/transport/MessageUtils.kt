@@ -20,17 +20,15 @@ import com.exactpro.th2.common.event.bean.TreeTableEntry
 import com.exactpro.th2.common.event.bean.builder.CollectionBuilder
 import com.exactpro.th2.common.event.bean.builder.RowBuilder
 import com.exactpro.th2.common.event.bean.builder.TreeTableBuilder
-import com.exactpro.th2.common.grpc.Direction.FIRST
-import com.exactpro.th2.common.grpc.Direction.SECOND
 import com.exactpro.th2.common.grpc.MessageID
 import com.exactpro.th2.common.message.addField
 import com.exactpro.th2.common.message.toTimestamp
-import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Direction.INCOMING
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.GroupBatch
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Message
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageGroup
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageId
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.proto
 import com.exactpro.th2.common.utils.event.transport.toProto
 import com.exactpro.th2.common.utils.message.MessageTableColumn
 import com.exactpro.th2.common.value.toValue
@@ -43,7 +41,7 @@ fun Message<*>.toGroup(): MessageGroup = MessageGroup.builder().apply {
 
 fun MessageId.toProto(book: String, sessionGroup: String): MessageID = MessageID.newBuilder().also {
     it.bookName = book
-    it.direction = if (direction == INCOMING) FIRST else SECOND
+    it.direction = direction.proto
     it.sequence = sequence
     it.timestamp = timestamp.toTimestamp()
 
