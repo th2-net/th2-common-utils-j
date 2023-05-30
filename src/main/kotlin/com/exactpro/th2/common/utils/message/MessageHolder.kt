@@ -25,7 +25,6 @@ import com.exactpro.th2.common.message.toJson
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage
 import com.exactpro.th2.common.utils.event.transport.toProto
 import com.exactpro.th2.common.utils.message.transport.toProto
-import com.google.protobuf.TextFormat
 
 
 sealed interface MessageHolder {
@@ -68,7 +67,7 @@ class ProtoMessageHolder(
     override fun getSimple(vararg path: String): String? = source.getSimple(*path)
 
     override fun toString(): String {
-        return TextFormat.shortDebugString(source)
+        return source.toJson()
     }
 
     companion object {
@@ -107,11 +106,11 @@ class ProtoMessageHolder(
 
             }
             currentValue
-        }.onFailure {
+        }.getOrElse {
             throw FieldNotFoundException(
                 "Filed not found by ${path.contentToString()} path in ${toJson()} message", it
             )
-        }.getOrThrow()
+        }
 
         @Throws(FieldNotFoundException::class)
         fun Message.getSimple(vararg path: String): String? = getField(*path)?.run {
@@ -177,9 +176,9 @@ class TransportMessageHolder(
                 }
             }
             currentValue
-        }.onFailure {
+        }.getOrElse {
             throw FieldNotFoundException("Filed not found by ${path.contentToString()} path in $this message", it)
-        }.getOrThrow()
+        }
 
         @Throws(FieldNotFoundException::class)
         fun ParsedMessage.getSimple(vararg path: String): String? = getField(*path)?.run {
