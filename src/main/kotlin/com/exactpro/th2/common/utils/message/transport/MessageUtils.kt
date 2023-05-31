@@ -35,6 +35,12 @@ import com.exactpro.th2.common.value.toValue
 import java.math.BigDecimal
 import com.exactpro.th2.common.grpc.Message as ProtoMessage
 
+fun Message<*>.toBatch(book: String, sessionGroup: String): GroupBatch = GroupBatch.builder().apply {
+    setBook(book)
+    setSessionGroup(sessionGroup)
+    addGroup(this@toBatch.toGroup())
+}.build()
+
 fun Message<*>.toGroup(): MessageGroup = MessageGroup.builder().apply {
     addMessage(this@toGroup)
 }.build()
