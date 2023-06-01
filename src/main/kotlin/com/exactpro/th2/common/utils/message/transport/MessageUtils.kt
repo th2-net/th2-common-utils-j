@@ -23,6 +23,7 @@ import com.exactpro.th2.common.event.bean.builder.TreeTableBuilder
 import com.exactpro.th2.common.grpc.MessageID
 import com.exactpro.th2.common.message.addField
 import com.exactpro.th2.common.message.toTimestamp
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.EventId
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.GroupBatch
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Message
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageGroup
@@ -30,6 +31,7 @@ import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageId
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.proto
 import com.exactpro.th2.common.utils.event.transport.toProto
+import com.exactpro.th2.common.utils.message.FieldNotFoundException
 import com.exactpro.th2.common.utils.message.MessageTableColumn
 import com.exactpro.th2.common.value.toValue
 import java.math.BigDecimal
@@ -40,6 +42,12 @@ fun MessageGroup.toBatch(book: String, sessionGroup: String): GroupBatch = Group
     setSessionGroup(sessionGroup)
     addGroup(this@toBatch)
 }.build()
+
+val MessageGroup.eventIds: Sequence<EventId>
+    get() = messages.asSequence()
+        .map(Message<*>::eventId)
+        .filterNotNull()
+        .distinct()
 
 fun Message<*>.toGroup(): MessageGroup = MessageGroup.builder().apply {
     addMessage(this@toGroup)
@@ -103,6 +111,71 @@ private fun Any?.toTreeTableEntry(): TreeTableEntry {
         is String -> RowBuilder().column(MessageTableColumn(this)).build()
         is Number -> RowBuilder().column(MessageTableColumn(convertToString())).build()
         else -> error("Unsupported ${this::class.simpleName} number type, value $this")
+    }
+}
+
+/**
+ * Traverses the internal message and returns value by [path]
+ * @return null when the last element exist but has null value otherwise return [Any] value
+ * @throws [FieldNotFoundException] if message doesn't include full path or message structure doesn't match to path
+ */
+@Throws(FieldNotFoundException::class)
+fun Map<*, *>.getField(vararg path: String): Any? = runCatching {
+    require(path.isNotEmpty()) {
+        "Path to field can't be empty"
+    }
+    var currentValue: Any? = this[path.first()]
+
+    path.asSequence().drop(1).forEachIndexed { pathIndex, name ->
+        currentValue = when (currentValue) {
+            is Map<*, *> -> (currentValue as Map<*, *>)[name]
+            is List<*> -> {
+                val index = requireNotNull(name.toIntOrNull()) {
+                    "'$name' path element can't be path as number, value: ${currentValue}, path: ${path.contentToString()}, index: ${pathIndex + 1}"
+                }
+                val casted = (currentValue as List<*>)
+                require(index >= 0 && casted.size > index) {
+                    "'$index' index should be positive or zero and less then '${casted.size}' list size, value: ${currentValue}, path: ${path.contentToString()}, index: ${pathIndex + 1}"
+                }
+                casted[index]
+            }
+
+            else -> error("Field '$name' can't be got from unknown value: ${currentValue}, path: ${path.contentToString()}, index: ${pathIndex + 1}")
+        }
+    }
+    currentValue
+}.getOrElse {
+    throw FieldNotFoundException("Filed not found by ${path.contentToString()} path in $this message", it)
+}
+
+@Throws(FieldNotFoundException::class)
+fun Map<*, *>.getString(vararg path: String): String? = getField(*path)?.run {
+    when (this) {
+        is String -> this
+        is Number -> this.toString()
+        else -> throw FieldNotFoundException(
+            "Value by ${path.contentToString()} path isn't simple, actual value: $this ${this::class.java.simpleName}, message: $this"
+        )
+    }
+}
+
+@Throws(FieldNotFoundException::class)
+fun Map<*, *>.getList(vararg path: String): List<*>? = getField(*path)?.run {
+    when (this) {
+        is List<*> -> this
+        else -> throw FieldNotFoundException(
+            "Value by ${path.contentToString()} path isn't list, actual value: $this ${this::class.java.simpleName}, message: $this"
+        )
+    }
+}
+
+@Throws(FieldNotFoundException::class)
+fun Map<*, *>.getMap(vararg path: String): Map<*, *>? = getField(*path)?.run {
+    when (this) {
+        is Map<*, *> -> this
+        else -> throw FieldNotFoundException(
+            "Value by ${path.contentToString()} path isn't map, actual value: $this ${this::class.java.simpleName}, message: $this"
+        )
     }
 }
 

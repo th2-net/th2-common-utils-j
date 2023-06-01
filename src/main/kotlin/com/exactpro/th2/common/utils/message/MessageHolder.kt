@@ -19,11 +19,11 @@ package com.exactpro.th2.common.utils.message
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageID
-import com.exactpro.th2.common.grpc.Value
 import com.exactpro.th2.common.message.messageType
 import com.exactpro.th2.common.message.toJson
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage
 import com.exactpro.th2.common.utils.event.transport.toProto
+import com.exactpro.th2.common.utils.message.transport.getString
 import com.exactpro.th2.common.utils.message.transport.toProto
 
 
@@ -64,7 +64,7 @@ class ProtoMessageHolder(
         get() = source
 
     @Throws(FieldNotFoundException::class)
-    override fun getSimple(vararg path: String): String? = source.getSimple(*path)
+    override fun getSimple(vararg path: String): String? = source.getString(*path)
 
     override fun toString(): String {
         return source.toJson()
@@ -73,53 +73,6 @@ class ProtoMessageHolder(
     companion object {
         @JvmStatic
         val DEFAULT = ProtoMessageHolder(Message.getDefaultInstance())
-
-        /**
-         * Traverses the internal message and returns [Value] by [path]
-         * @throws [FieldNotFoundException] if message doesn't include full path or message structure doesn't match to path
-         */
-        @Throws(FieldNotFoundException::class)
-        fun Message.getField(vararg path: String): Value? = runCatching {
-            require(path.isNotEmpty()) {
-                "Path to field can't be empty"
-            }
-            var currentValue: Value? = fieldsMap[path.first()]
-
-            path.asSequence().drop(1).forEachIndexed { pathIndex, name ->
-                currentValue?.let {
-                    currentValue = when (it.kindCase) {
-                        Value.KindCase.MESSAGE_VALUE -> it.messageValue.fieldsMap[name]
-                        Value.KindCase.LIST_VALUE -> {
-                            val index = requireNotNull(name.toIntOrNull()) {
-                                "'$name' path element can't be path as number, value: ${toJson()}, path: ${path.contentToString()}, index: ${pathIndex + 1}"
-                            }
-                            require(index >= 0 && it.listValue.valuesCount > index) {
-                                "'$index' index should be positive or zero and less then '${it.listValue.valuesCount}' list size, value: ${toJson()}, path: ${path.contentToString()}, index: ${pathIndex + 1}"
-                            }
-                            it.listValue.getValues(index)
-                        }
-
-                        else -> error("Field '$name' can't be got from unknown value: ${toJson()}, path: ${path.contentToString()}, index: ${pathIndex + 1}")
-                    }
-                }
-                    ?: error("Field '$name' is not found because '${path[pathIndex]}' previous field is null, path: ${path.contentToString()}, index: ${pathIndex + 1}")
-
-            }
-            currentValue
-        }.getOrElse {
-            throw FieldNotFoundException(
-                "Filed not found by ${path.contentToString()} path in ${toJson()} message", it
-            )
-        }
-
-        @Throws(FieldNotFoundException::class)
-        fun Message.getSimple(vararg path: String): String? = getField(*path)?.run {
-            when (kindCase) {
-                Value.KindCase.NULL_VALUE -> null
-                Value.KindCase.SIMPLE_VALUE -> simpleValue
-                else -> throw FieldNotFoundException("Value by ${path.contentToString()} path isn't simple, value: ${this.toJson()}, message: ${toJson()}")
-            }
-        }
     }
 }
 
@@ -139,56 +92,9 @@ class TransportMessageHolder(
     override val protoMessage: Message by lazy { source.toProto(book, sessionGroup) }
 
     @Throws(FieldNotFoundException::class)
-    override fun getSimple(vararg path: String): String? = source.getSimple(*path)
+    override fun getSimple(vararg path: String): String? = source.body.getString(*path)
 
     override fun toString(): String {
         return "TransportMessageWrapper(transport=$source, book='$book', sessionGroup='$sessionGroup')"
-    }
-
-    companion object {
-        /**
-         * Traverses the internal message and returns value by [path]
-         * @return null when the last element exist but has null value otherwise return [Any] value
-         * @throws [FieldNotFoundException] if message doesn't include full path or message structure doesn't match to path
-         */
-        @Throws(FieldNotFoundException::class)
-        fun ParsedMessage.getField(vararg path: String): Any? = runCatching {
-            require(path.isNotEmpty()) {
-                "Path to field can't be empty"
-            }
-            var currentValue: Any? = body[path.first()]
-
-            path.asSequence().drop(1).forEachIndexed { pathIndex, name ->
-                currentValue = when (currentValue) {
-                    is Map<*, *> -> (currentValue as Map<*, *>)[name]
-                    is List<*> -> {
-                        val index = requireNotNull(name.toIntOrNull()) {
-                            "'$name' path element can't be path as number, value: ${currentValue}, path: ${path.contentToString()}, index: ${pathIndex + 1}"
-                        }
-                        val casted = (currentValue as List<*>)
-                        require(index >= 0 && casted.size > index) {
-                            "'$index' index should be positive or zero and less then '${casted.size}' list size, value: ${currentValue}, path: ${path.contentToString()}, index: ${pathIndex + 1}"
-                        }
-                        casted[index]
-                    }
-
-                    else -> error("Field '$name' can't be got from unknown value: ${currentValue}, path: ${path.contentToString()}, index: ${pathIndex + 1}")
-                }
-            }
-            currentValue
-        }.getOrElse {
-            throw FieldNotFoundException("Filed not found by ${path.contentToString()} path in $this message", it)
-        }
-
-        @Throws(FieldNotFoundException::class)
-        fun ParsedMessage.getSimple(vararg path: String): String? = getField(*path)?.run {
-            when (this) {
-                is String -> this
-                is Number -> this.toString()
-                else -> throw FieldNotFoundException(
-                    "Value by ${path.contentToString()} path isn't string, actual value: $this ${this::class.java.simpleName}, message: $this"
-                )
-            }
-        }
     }
 }

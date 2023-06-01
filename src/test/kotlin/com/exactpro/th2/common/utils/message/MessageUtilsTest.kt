@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.exactpro.th2.common.utils.message.proto
+package com.exactpro.th2.common.utils.message
 
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.message.addField
+import com.exactpro.th2.common.message.get
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Direction
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.EventId
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage
-import com.exactpro.th2.common.utils.message.toTimestamp
-import com.exactpro.th2.common.utils.message.toTransport
-import com.exactpro.th2.common.utils.message.toTreeTable
+import com.exactpro.th2.common.value.toValue
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -185,6 +185,80 @@ class MessageUtilsTest {
               }
             }
         """.trimIndent().replace("\n", "").replace(" ", ""), OBJECT_MAPPER.writeValueAsString(proto.toTreeTable())
+        )
+    }
+
+    @Test
+    fun `get list value`() {
+        val message = mapOf(
+            "null" to null,
+            "list" to listOf("simple", null),
+            "map" to mapOf(
+                "null" to null,
+                "list" to listOf("simple", null),
+            ),
+            "map-list" to listOf(
+                mapOf(
+                    "null" to null,
+                    "list" to listOf("simple", null),
+                ),
+                null
+            )
+        ).toValue().messageValue
+
+        Assertions.assertNull(message.getList("fake"))
+        Assertions.assertNull(message.getList("null"))
+        Assertions.assertNull(message.getList("list", "1"))
+        Assertions.assertNull(message.getList("map", "fake"))
+        Assertions.assertNull(message.getList("map", "null"))
+        Assertions.assertNull(message.getList("map-list", "1"))
+        Assertions.assertNull(message.getList("map-list", "0", "null"))
+        Assertions.assertNull(message.getList("map-list", "0", "list", "1"))
+
+        assertEquals(message["list"]?.listValue?.valuesList ?: error("Expected value problem"), message.getList("list"))
+        assertEquals(
+            message["map-list"]?.listValue?.valuesList ?: error("Expected value problem"),
+            message.getList("map-list")
+        )
+        assertEquals(
+            message["map"]?.messageValue?.getField("list")?.listValue?.valuesList ?: error("Expected value problem"),
+            message.getList("map", "list")
+        )
+        assertEquals(
+            message["map-list"]?.listValue?.getValues(0)?.messageValue?.getField("list")?.listValue?.valuesList
+                ?: error("Expected value problem"), message.getList("map-list", "0", "list")
+        )
+    }
+
+    @Test
+    fun `get map value`() {
+        val message = mapOf(
+            "null" to null,
+            "map" to mapOf(
+                "null" to null,
+            ),
+            "map-list" to listOf(
+                mapOf(
+                    "null" to null,
+                ),
+                null
+            )
+        ).toValue().messageValue
+
+        Assertions.assertNull(message.getMessage("fake"))
+        Assertions.assertNull(message.getMessage("null"))
+        Assertions.assertNull(message.getMessage("map", "fake"))
+        Assertions.assertNull(message.getMessage("map", "null"))
+        Assertions.assertNull(message.getMessage("map-list", "1"))
+        Assertions.assertNull(message.getMessage("map-list", "0", "null"))
+
+        assertEquals(
+            message["map"]?.messageValue ?: error("Expected value problem"),
+            message.getMessage("map")
+        )
+        assertEquals(
+            message["map-list"]?.listValue?.getValues(0)?.messageValue ?: error("Expected value problem"),
+            message.getMessage("map-list", "0")
         )
     }
 

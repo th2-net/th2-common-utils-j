@@ -23,6 +23,7 @@ import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMess
 import com.exactpro.th2.common.utils.message.toTimestamp
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import kotlin.random.Random
@@ -190,6 +191,65 @@ class MessageUtilsTest {
             }
         """.trimIndent().replace("\n", "").replace(" ", ""), OBJECT_MAPPER.writeValueAsString(transport.toTreeTable())
         )
+    }
+
+    @Test
+    fun `get list value`() {
+        val map = mapOf(
+            "null" to null,
+            "list" to listOf("simple", null),
+            "map" to mapOf(
+                "null" to null,
+                "list" to listOf("simple", null),
+            ),
+            "map-list" to listOf(
+                mapOf(
+                    "null" to null,
+                    "list" to listOf("simple", null),
+                ),
+                null
+            )
+        )
+
+        assertNull(map.getList("fake"))
+        assertNull(map.getList("null"))
+        assertNull(map.getList("list", "1"))
+        assertNull(map.getList("map", "fake"))
+        assertNull(map.getList("map", "null"))
+        assertNull(map.getList("map-list", "1"))
+        assertNull(map.getList("map-list", "0", "null"))
+        assertNull(map.getList("map-list", "0", "list", "1"))
+
+        assertEquals(map["list"], map.getList("list"))
+        assertEquals(map["map-list"], map.getList("map-list"))
+        assertEquals((map["map"] as Map<*, *>)["list"], map.getList("map", "list"))
+        assertEquals(((map["map-list"] as List<*>)[0] as Map<*, *>)["list"], map.getList("map-list", "0", "list"))
+    }
+
+    @Test
+    fun `get map value`() {
+        val map = mapOf(
+            "null" to null,
+            "map" to mapOf(
+                "null" to null,
+            ),
+            "map-list" to listOf(
+                mapOf(
+                    "null" to null,
+                ),
+                null
+            )
+        )
+
+        assertNull(map.getMap("fake"))
+        assertNull(map.getMap("null"))
+        assertNull(map.getMap("map", "fake"))
+        assertNull(map.getMap("map", "null"))
+        assertNull(map.getMap("map-list", "1"))
+        assertNull(map.getMap("map-list", "0", "null"))
+
+        assertEquals(map["map"], map.getMap("map"))
+        assertEquals((map["map-list"] as List<*>)[0], map.getMap("map-list", "0"))
     }
 
     companion object {

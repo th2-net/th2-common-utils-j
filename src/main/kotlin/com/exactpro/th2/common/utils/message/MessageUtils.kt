@@ -24,6 +24,7 @@ import com.exactpro.th2.common.event.bean.builder.TreeTableBuilder
 import com.exactpro.th2.common.grpc.AnyMessage
 import com.exactpro.th2.common.grpc.AnyMessageOrBuilder
 import com.exactpro.th2.common.grpc.Direction
+import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.MessageGroupOrBuilder
@@ -138,6 +139,13 @@ val AnyMessageOrBuilder.id: MessageID
         else -> error("Unsupported message kind: $kindCase")
     }
 
+val AnyMessageOrBuilder.parentEventId: EventID?
+    get() = when {
+        hasMessage() -> if (message.hasParentEventId()) message.parentEventId else null
+        hasRawMessage() -> if (rawMessage.hasParentEventId()) rawMessage.parentEventId else null
+        else -> error("Unsupported message kind: $kindCase")
+    }
+
 var Message.Builder.sessionAlias: String?
     get() = metadata.id.connectionId.sessionAlias.ifEmpty { null }
     set(value) {
@@ -222,6 +230,12 @@ fun MessageGroup.Builder.add(message: Message): MessageGroup.Builder = apply { a
 fun MessageGroup.Builder.add(message: RawMessage): MessageGroup.Builder =
     apply { addMessagesBuilder().rawMessage = message }
 
+val MessageGroupOrBuilder.parentEventIds: Sequence<EventID>
+    get() = messagesList.asSequence()
+        .map(AnyMessage::parentEventId)
+        .filterNotNull()
+        .distinct()
+
 fun Instant.toTimestamp(): Timestamp = Timestamp.newBuilder().setSeconds(epochSecond).setNanos(nano).build()
 fun Date.toTimestamp(): Timestamp = toInstant().toTimestamp()
 fun LocalDateTime.toTimestamp(zone: ZoneOffset): Timestamp = toInstant(zone).toTimestamp()
@@ -292,3 +306,68 @@ fun Message.toTransportBuilder(): ParsedMessage.Builder<ParsedMessage.FromMapBui
 }
 
 fun Message.toTransport(): ParsedMessage = toTransportBuilder().build()
+
+/**
+ * Traverses the internal message and returns [Value] by [path]
+ * @throws [FieldNotFoundException] if message doesn't include full path or message structure doesn't match to path
+ */
+@Throws(FieldNotFoundException::class)
+fun MessageOrBuilder.getField(vararg path: String): Value? = runCatching {
+    require(path.isNotEmpty()) {
+        "Path to field can't be empty"
+    }
+    var currentValue: Value? = fieldsMap[path.first()]
+
+    path.asSequence().drop(1).forEachIndexed { pathIndex, name ->
+        currentValue?.let {
+            currentValue = when (it.kindCase) {
+                Value.KindCase.MESSAGE_VALUE -> it.messageValue.fieldsMap[name]
+                Value.KindCase.LIST_VALUE -> {
+                    val index = requireNotNull(name.toIntOrNull()) {
+                        "'$name' path element can't be path as number, value: ${toJson()}, path: ${path.contentToString()}, index: ${pathIndex + 1}"
+                    }
+                    require(index >= 0 && it.listValue.valuesCount > index) {
+                        "'$index' index should be positive or zero and less then '${it.listValue.valuesCount}' list size, value: ${toJson()}, path: ${path.contentToString()}, index: ${pathIndex + 1}"
+                    }
+                    it.listValue.getValues(index)
+                }
+
+                else -> error("Field '$name' can't be got from unknown value: ${toJson()}, path: ${path.contentToString()}, index: ${pathIndex + 1}")
+            }
+        }
+            ?: error("Field '$name' is not found because '${path[pathIndex]}' previous field is null, path: ${path.contentToString()}, index: ${pathIndex + 1}")
+
+    }
+    currentValue
+}.getOrElse {
+    throw FieldNotFoundException(
+        "Filed not found by ${path.contentToString()} path in ${toJson()} message", it
+    )
+}
+
+@Throws(FieldNotFoundException::class)
+fun MessageOrBuilder.getString(vararg path: String): String? = getField(*path)?.run {
+    when (kindCase) {
+        Value.KindCase.NULL_VALUE -> null
+        Value.KindCase.SIMPLE_VALUE -> simpleValue
+        else -> throw FieldNotFoundException("Value by ${path.contentToString()} path isn't simple, value: ${this.toJson()}, message: ${toJson()}")
+    }
+}
+
+@Throws(FieldNotFoundException::class)
+fun MessageOrBuilder.getList(vararg path: String): List<Value>? = getField(*path)?.run {
+    when (kindCase) {
+        Value.KindCase.NULL_VALUE -> null
+        Value.KindCase.LIST_VALUE -> listValue.valuesList
+        else -> throw FieldNotFoundException("Value by ${path.contentToString()} path isn't list value, value: ${this.toJson()}, message: ${toJson()}")
+    }
+}
+
+@Throws(FieldNotFoundException::class)
+fun MessageOrBuilder.getMessage(vararg path: String): Message? = getField(*path)?.run {
+    when (kindCase) {
+        Value.KindCase.NULL_VALUE -> null
+        Value.KindCase.MESSAGE_VALUE -> messageValue
+        else -> throw FieldNotFoundException("Value by ${path.contentToString()} path isn't message value, value: ${this.toJson()}, message: ${toJson()}")
+    }
+}
