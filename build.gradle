@@ -13,7 +13,6 @@ buildscript {
 }
 
 plugins {
-    id 'java'
     id 'java-library'
     id 'maven-publish'
     id 'java-test-fixtures'
@@ -45,7 +44,7 @@ repositories {
         url 'https://s01.oss.sonatype.org/content/repositories/releases/'
     }
 
-    configurations.all {
+    configurations.configureEach {
         resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
         resolutionStrategy.cacheDynamicVersionsFor 0, 'seconds'
     }
@@ -57,7 +56,7 @@ java {
 }
 
 // conditionals for publications
-tasks.withType(PublishToMavenRepository) {
+tasks.withType(PublishToMavenRepository).configureEach {
     onlyIf {
         (repository == publishing.repositories.nexusRepository &&
                 project.hasProperty('nexus_user') &&
@@ -68,14 +67,14 @@ tasks.withType(PublishToMavenRepository) {
                         project.hasProperty('sonatypePassword'))
     }
 }
-tasks.withType(Sign) {
+tasks.withType(Sign).configureEach {
     onlyIf {
         project.hasProperty('signingKey') &&
                 project.hasProperty('signingPassword')
     }
 }
 // disable running task 'initializeSonatypeStagingRepository' on a gitlab
-tasks.whenTaskAdded { task ->
+tasks.configureEach { task ->
     if (task.name.equals('initializeSonatypeStagingRepository') &&
             !(project.hasProperty('sonatypeUsername') && project.hasProperty('sonatypePassword'))
     ) {
@@ -85,7 +84,7 @@ tasks.whenTaskAdded { task ->
 
 publishing {
     publications {
-        mavenJava(MavenPublication) {
+        maven(MavenPublication) {
             from(components.java)
             pom {
                 name = rootProject.name
@@ -137,8 +136,8 @@ nexusPublishing {
 }
 
 signing {
-    def signingKey = findProperty("signingKey")
-    def signingPassword = findProperty("signingPassword")
+    String signingKey = findProperty("signingKey")
+    String signingPassword = findProperty("signingPassword")
     useInMemoryPgpKeys(signingKey, signingPassword)
     sign publishing.publications.mavenJava
 }
@@ -154,18 +153,17 @@ configurations {
 
 dependencies {
     api platform('com.exactpro.th2:bom:4.2.0')
-    api 'com.exactpro.th2:grpc-common:4.1.1-dev'
+    api 'com.exactpro.th2:grpc-common:4.2.0-dev'
 
     // TODO: Use this dependency util extract th2 transport into separate library
-    compileOnly('com.exactpro.th2:common:5.3.0-json-raw-body-5111091854-6528835-SNAPSHOT') {
+    compileOnly('com.exactpro.th2:common:5.3.0-json-raw-body-5153351130-002af9f-SNAPSHOT') {
         description 'Transport message classes are used in utilities methods'
     }
 
     implementation "org.jetbrains:annotations"
     implementation "org.slf4j:slf4j-api"
 
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:${kotlin_version}"
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${kotlin_version}"
+    implementation 'io.github.microutils:kotlin-logging:3.0.0' // The last version bases on kotlin 1.6.0
 
     implementation 'io.prometheus:simpleclient'
 
