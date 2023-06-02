@@ -84,7 +84,7 @@ tasks.configureEach { task ->
 
 publishing {
     publications {
-        maven(MavenPublication) {
+        mavenJava(MavenPublication) {
             from(components.java)
             pom {
                 name = rootProject.name
