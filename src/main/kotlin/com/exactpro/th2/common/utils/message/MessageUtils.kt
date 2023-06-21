@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.common.utils.message
 
 import com.exactpro.th2.common.event.bean.IColumn
@@ -47,7 +48,10 @@ import com.google.protobuf.util.JsonFormat
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
-import java.util.*
+import java.util.Locale
+import java.util.Calendar
+import java.util.TimeZone
+import java.util.Date
 
 typealias JavaDuration = java.time.Duration
 
@@ -56,7 +60,7 @@ val MessageIDOrBuilder.subsequence: List<Int>
 val MessageIDOrBuilder.sessionAlias: String?
     get() = connectionId.sessionAlias.ifBlank { null }
 val MessageIDOrBuilder.logId: String
-    get() = "$bookName$sessionAlias:${
+    get() = "$bookName:$sessionAlias:${
         direction.toString().lowercase(Locale.getDefault())
     }:${timestamp.logTimestamp}:$sequence${subsequence.joinToString("") { ".$it" }}"
 

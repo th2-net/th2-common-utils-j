@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.common.utils.message.transport
 
 import com.exactpro.th2.common.event.bean.TreeTable
@@ -36,6 +37,9 @@ import com.exactpro.th2.common.utils.message.MessageTableColumn
 import com.exactpro.th2.common.value.toValue
 import java.math.BigDecimal
 import com.exactpro.th2.common.grpc.Message as ProtoMessage
+
+val MessageId.logId: String
+    get() = "$sessionAlias:${direction.toString().lowercase()}:${timestamp}:$sequence${subsequence.joinToString("") { ".$it" }}"
 
 fun MessageGroup.toBatch(book: String, sessionGroup: String): GroupBatch = GroupBatch.builder().apply {
     setBook(book)
