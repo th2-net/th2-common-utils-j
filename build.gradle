@@ -30,7 +30,7 @@ sourceCompatibility = 11
 targetCompatibility = 11
 
 ext {
-    junitVersion = '5.9.0'
+    junitVersion = '5.9.3'
 }
 
 repositories {
@@ -152,11 +152,11 @@ configurations {
 }
 
 dependencies {
-    api platform('com.exactpro.th2:bom:4.2.0')
-    api 'com.exactpro.th2:grpc-common:4.2.0-dev'
+    api platform('com.exactpro.th2:bom:4.4.0-update-libs-5345334944-c71fdc9-SNAPSHOT')
+    api 'com.exactpro.th2:grpc-common:4.3.0-TH2-4887-vulnerabilities-5346500826-f180a19-SNAPSHOT'
 
     // TODO: Use this dependency util extract th2 transport into separate library
-    compileOnly('com.exactpro.th2:common:5.3.0-json-raw-body-5153351130-002af9f-SNAPSHOT') {
+    compileOnly('com.exactpro.th2:common:5.3.0-separate-executor-5347518176-63bc4ea-SNAPSHOT') {
         description 'Transport message classes are used in utilities methods'
     }
 
