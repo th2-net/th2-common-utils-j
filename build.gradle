@@ -152,11 +152,14 @@ dependencies {
     implementation "org.jetbrains:annotations"
     implementation "org.slf4j:slf4j-api"
 
+    implementation 'io.github.microutils:kotlin-logging:3.0.0' // The last version bases on kotlin 1.6.0
     implementation "org.jetbrains.kotlin:kotlin-stdlib:${kotlin_version}"
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${kotlin_version}"
 
     implementation 'io.prometheus:simpleclient'
 
+    testImplementation 'org.apache.logging.log4j:log4j-slf4j2-impl'
+    testImplementation 'org.apache.logging.log4j:log4j-core'
     testImplementation 'org.mockito.kotlin:mockito-kotlin:4.0.0'
     testImplementation "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
     testImplementation "org.junit.jupiter:junit-jupiter-params:${junitVersion}"
