@@ -70,6 +70,19 @@ class ProtoMessageHolder(
         return source.toJson()
     }
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as ProtoMessageHolder
+
+        return source == other.source
+    }
+
+    override fun hashCode(): Int {
+        return source.hashCode()
+    }
+
     companion object {
         @JvmStatic
         val DEFAULT = ProtoMessageHolder(Message.getDefaultInstance())
@@ -96,5 +109,23 @@ class TransportMessageHolder(
 
     override fun toString(): String {
         return "TransportMessageWrapper(transport=$source, book='$book', sessionGroup='$sessionGroup')"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as TransportMessageHolder
+
+        if (source != other.source) return false
+        if (book != other.book) return false
+        return sessionGroup == other.sessionGroup
+    }
+
+    override fun hashCode(): Int {
+        var result = source.hashCode()
+        result = 31 * result + book.hashCode()
+        result = 31 * result + sessionGroup.hashCode()
+        return result
     }
 }
