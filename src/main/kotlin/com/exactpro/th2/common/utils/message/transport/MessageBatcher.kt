@@ -30,7 +30,7 @@ import kotlin.concurrent.withLock
 class MessageBatcher(
     private val maxBatchSize: Int = 1000,
     private val maxFlushTime: Long = 1000,
-    private val book: String,
+    private val defaultBook: String,
     private val batchSelector: (Message.Builder<*>, String) -> Any = GROUP_SELECTOR,
     private val executor: ScheduledExecutorService,
     private val onError: (Throwable) -> Unit = {},
@@ -38,9 +38,9 @@ class MessageBatcher(
 ) : AutoCloseable {
     private val batches = ConcurrentHashMap<Any, Batch>()
 
-    fun onMessage(message: Message.Builder<*>, sessionGroup: String) {
+    fun onMessage(message: Message.Builder<*>, sessionGroup: String, book: String? = null) {
         message.idBuilder().setTimestamp(Instant.now())
-        batches.getOrPut(batchSelector(message, sessionGroup)) { Batch(book, sessionGroup) }
+        batches.getOrPut(batchSelector(message, sessionGroup)) { Batch(book ?: defaultBook, sessionGroup) }
             .add(message.build().toGroup())
     }
 
