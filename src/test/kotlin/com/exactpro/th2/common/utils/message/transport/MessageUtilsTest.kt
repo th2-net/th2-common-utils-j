@@ -24,7 +24,9 @@ import com.exactpro.th2.common.utils.message.FieldNotFoundException
 import com.exactpro.th2.common.utils.message.toTimestamp
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Instant
@@ -271,6 +273,45 @@ class MessageUtilsTest {
         assertNull(map.getFieldSoft("map", "fake", "fake"))
         assertNull(map.getFieldSoft("map-list", "3"))
         assertNull(map.getFieldSoft("map-list", "0", "fake", "fake"))
+    }
+
+    @Test
+    fun `contains filed`() {
+        val map = mapOf(
+            "null" to null,
+            "list" to listOf("simple", null),
+            "map" to mapOf(
+                "null" to null,
+                "list" to listOf("simple", null),
+            ),
+            "map-list" to listOf(
+                mapOf(
+                    "null" to null,
+                    "list" to listOf("simple", null),
+                ),
+                null
+            )
+        )
+
+        assertFalse(map.containsField("fake"))
+        assertFalse(map.containsField("null"))
+        assertFalse(map.containsField("list", "1"))
+        assertFalse(map.containsField("map", "fake"))
+        assertFalse(map.containsField("map", "null"))
+        assertFalse(map.containsField("map-list", "1"))
+        assertFalse(map.containsField("map-list", "0", "null"))
+        assertFalse(map.containsField("map-list", "0", "list", "1"))
+
+        assertTrue(map.containsField("list"))
+        assertTrue(map.containsField("map-list"))
+        assertTrue(map.containsField("map", "list"))
+        assertTrue(map.containsField("map-list", "0", "list"))
+
+        assertFalse(map.containsField("fake", "fake"))
+        assertFalse(map.containsField("list", "3"))
+        assertFalse(map.containsField("map", "fake", "fake"))
+        assertFalse(map.containsField("map-list", "3"))
+        assertFalse(map.containsField("map-list", "0", "fake", "fake"))
     }
 
     @Test
