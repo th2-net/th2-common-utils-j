@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("unused")
+
 package com.exactpro.th2.common.utils.message.transport
 
 import com.exactpro.th2.common.event.bean.TreeTable
@@ -118,6 +120,28 @@ private fun Any?.toTreeTableEntry(): TreeTableEntry {
     }
 }
 
+fun ParsedMessage.FromMapBuilder.copyFields(source: ParsedMessage, vararg fields: String) = apply {
+    with(bodyBuilder()) {
+        fields.forEach { field ->
+            put(field, source.body[field])
+        }
+    }
+}
+
+fun ParsedMessage.FromMapBuilder.addFields(vararg fields: Pair<String, Any?>) = apply {
+    with(bodyBuilder()) {
+        fields.forEach { (name, value) -> put(name, value) }
+    }
+}
+
+inline fun message(type: String, func: ParsedMessage.FromMapBuilder.() -> Unit = {}): ParsedMessage.FromMapBuilder =
+    ParsedMessage.builder().setType(type).apply(func)
+
+fun ParsedMessage.getFiled(vararg path: String): Any? = body.getField(*path)
+fun ParsedMessage.getFiledSoft(vararg path: String): Any? = body.getFieldSoft(*path)
+fun ParsedMessage.getString(vararg path: String): String? = body.getString(*path)
+fun ParsedMessage.getInt(vararg path: String): Int? = body.getInt(*path)
+
 /**
  * Traverses the internal message and returns value by [path]
  * @return null when the last element exist but has null value otherwise return [Any] value
@@ -128,9 +152,9 @@ fun Map<*, *>.getField(vararg path: String): Any? = runCatching {
     require(path.isNotEmpty()) {
         "Path to field can't be empty"
     }
-    var currentValue: Any? = this[path.first()]
+    var currentValue: Any? = this
 
-    path.asSequence().drop(1).forEachIndexed { pathIndex, name ->
+    path.asSequence().forEachIndexed { pathIndex, name ->
         currentValue = when (currentValue) {
             is Map<*, *> -> (currentValue as Map<*, *>)[name]
             is List<*> -> {
@@ -152,17 +176,69 @@ fun Map<*, *>.getField(vararg path: String): Any? = runCatching {
     throw FieldNotFoundException("Filed not found by ${path.contentToString()} path in $this message", it)
 }
 
+/**
+ * Traverses the internal message and returns value by [path]
+ * @return null when the last element exist but has null value otherwise return [Any] value
+ */
+fun Map<*, *>.getFieldSoft(vararg path: String): Any? {
+    require(path.isNotEmpty()) {
+        "Path to field can't be empty"
+    }
+    var currentValue: Any? = this
+
+    path.asSequence().forEachIndexed { pathIndex, name ->
+        currentValue = when (currentValue) {
+            is Map<*, *> -> (currentValue as Map<*, *>)[name]
+            is List<*> -> {
+                val index = requireNotNull(name.toIntOrNull()) {
+                    "'$name' path element can't be path as number, value: ${currentValue}, path: ${path.contentToString()}, index: ${pathIndex + 1}"
+                }
+                val casted = (currentValue as List<*>)
+                if (index < 0 || casted.size <= index) {
+                    return null
+                }
+                casted[index]
+            }
+
+            null -> return null
+            else -> error("Field '$name' can't be got from unknown value: ${currentValue}, path: ${path.contentToString()}, index: ${pathIndex + 1}")
+        }
+    }
+    return currentValue
+}
+
+/**
+ * @throws [FieldNotFoundException] if message doesn't include full path or message structure doesn't match to path
+ */
 @Throws(FieldNotFoundException::class)
 fun Map<*, *>.getString(vararg path: String): String? = getField(*path)?.run {
     when (this) {
         is String -> this
         is Number -> this.toString()
         else -> throw FieldNotFoundException(
-            "Value by ${path.contentToString()} path isn't simple, actual value: $this ${this::class.java.simpleName}, message: $this"
+            "Value by ${path.contentToString()} path isn't string, actual value: $this ${this::class.java.simpleName}, message: $this"
         )
     }
 }
 
+/**
+ * @throws [FieldNotFoundException] if message doesn't include full path or message structure doesn't match to path
+ * @throws [NumberFormatException]  if the filed value does not contain a parsable integer
+ */
+@Throws(FieldNotFoundException::class)
+fun Map<*, *>.getInt(vararg path: String): Int? = getField(*path)?.run {
+    when (this) {
+        is String -> this.toInt()
+        is Number -> this.toInt()
+        else -> throw FieldNotFoundException(
+            "Value by ${path.contentToString()} path isn't int, actual value: $this ${this::class.java.simpleName}, message: $this"
+        )
+    }
+}
+
+/**
+ * @throws [FieldNotFoundException] if message doesn't include full path or message structure doesn't match to path
+ */
 @Throws(FieldNotFoundException::class)
 fun Map<*, *>.getList(vararg path: String): List<*>? = getField(*path)?.run {
     when (this) {
@@ -173,6 +249,9 @@ fun Map<*, *>.getList(vararg path: String): List<*>? = getField(*path)?.run {
     }
 }
 
+/**
+ * @throws [FieldNotFoundException] if message doesn't include full path or message structure doesn't match to path
+ */
 @Throws(FieldNotFoundException::class)
 fun Map<*, *>.getMap(vararg path: String): Map<*, *>? = getField(*path)?.run {
     when (this) {
