@@ -137,10 +137,17 @@ fun ParsedMessage.FromMapBuilder.addFields(vararg fields: Pair<String, Any?>) = 
 inline fun message(type: String, func: ParsedMessage.FromMapBuilder.() -> Unit = {}): ParsedMessage.FromMapBuilder =
     ParsedMessage.builder().setType(type).apply(func)
 
-fun ParsedMessage.getFiled(vararg path: String): Any? = body.getField(*path)
-fun ParsedMessage.getFiledSoft(vararg path: String): Any? = body.getFieldSoft(*path)
+fun ParsedMessage.containsField(vararg path: String): Boolean = body.containsField(*path)
+fun ParsedMessage.getField(vararg path: String): Any? = body.getField(*path)
+fun ParsedMessage.getFieldSoft(vararg path: String): Any? = body.getFieldSoft(*path)
 fun ParsedMessage.getString(vararg path: String): String? = body.getString(*path)
 fun ParsedMessage.getInt(vararg path: String): Int? = body.getInt(*path)
+
+/**
+ * Traverses the internal message and check is value by [path] present and not null
+ * @return false when the last element exist and hasn't got null value otherwise return true
+ */
+fun Map<*, *>.containsField(vararg path: String): Boolean = getFieldSoft(*path) != null
 
 /**
  * Traverses the internal message and returns value by [path]
