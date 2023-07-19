@@ -276,7 +276,7 @@ class MessageUtilsTest {
     }
 
     @Test
-    fun `contains filed`() {
+    fun `contains field`() {
         val map = mapOf(
             "null" to null,
             "list" to listOf("simple", null),
