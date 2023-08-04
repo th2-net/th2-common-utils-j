@@ -33,13 +33,14 @@ class MessageBatcher(
     private val book: String,
     private val batchSelector: (Message.Builder<*>, String) -> Any = GROUP_SELECTOR,
     private val executor: ScheduledExecutorService,
+    private val fillTimestamp: Boolean = true,
     private val onError: (Throwable) -> Unit = {},
     private val onBatch: (GroupBatch) -> Unit
 ) : AutoCloseable {
     private val batches = ConcurrentHashMap<Any, Batch>()
 
     fun onMessage(message: Message.Builder<*>, sessionGroup: String) {
-        message.idBuilder().setTimestamp(Instant.now())
+        if(fillTimestamp) message.idBuilder().setTimestamp(Instant.now())
         batches.getOrPut(batchSelector(message, sessionGroup)) { Batch(book, sessionGroup) }
             .add(message.build().toGroup())
     }

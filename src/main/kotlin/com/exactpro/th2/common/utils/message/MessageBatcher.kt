@@ -41,11 +41,12 @@ class RawMessageBatcher(
     maxFlushTime: Long = 1000,
     private val batchSelector: (RawMessage.Builder) -> Any,
     executor: ScheduledExecutorService,
+    private val fillTimestamp: Boolean = true,
     onError: (Throwable) -> Unit = {},
     onBatch: (MessageGroupBatch) -> Unit
 ) : Batcher<RawMessage.Builder>(maxBatchSize, maxFlushTime, executor, onError, onBatch) {
     override fun onMessage(message: RawMessage.Builder) {
-        message.metadataBuilder.idBuilder.timestamp = Instant.now().toTimestamp()
+        if(fillTimestamp) message.metadataBuilder.idBuilder.timestamp = Instant.now().toTimestamp()
         add(batchSelector(message), message.build())
     }
 }
