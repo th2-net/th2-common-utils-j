@@ -162,7 +162,7 @@ dependencies {
     api 'com.exactpro.th2:grpc-common:4.3.0-dev'
 
     // TODO: Use this dependency util extract th2 transport into separate library
-    compileOnly('com.exactpro.th2:common:5.3.1-dev') {
+    compileOnly('com.exactpro.th2:common:5.3.2-dev') {
         description 'Transport message classes are used in utilities methods'
     }
 

@@ -1,4 +1,4 @@
-# th2 common util library (2.1.0)
+# th2 common util library (2.1.1)
 
 This is th2 java library with useful functions for developers and QA needs.
 
@@ -18,7 +18,16 @@ elapsed or number of events in it has reached `maxBatchSize`.
 
 # Changelog
 
+## 2.1.1
+
+#### Update
+* common: `5.3.2-dev`
+
 ## 2.1.0
+
+#### Feature
+* Added extension methods to work with fields for `ParsedMessage` class
+* Added extension methods to copy fields for `ParsedMessage.FromMapBuilder` class
 
 #### Update
 * grpc-common: `4.3.0-dev`
