@@ -20,10 +20,18 @@ elapsed or number of events in it has reached `maxBatchSize`.
 
 ## 2.1.0
 
+#### Update
+* grpc-common: `4.3.0-dev`
+* common: `5.3.1-dev`
+
+#### Feature
 * Added utility method for th2 transport protocol
 * Added message batcher for transport protocol
-* Configured vulnerability checks
-* Migrated to grpc-common:4.2.0-dev
+
+#### Gradle plugins:
++ Added org.owasp.dependencycheck: `8.3.1`
++ Added com.github.jk1.dependency-license-report `2.5`
++ Added de.undercouch.download `5.4.0`
 
 ## 2.0.0
 
