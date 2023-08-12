@@ -14,24 +14,15 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.common.utils.event
+package com.exactpro.th2.common.utils.event.transport
 
-import com.exactpro.th2.common.grpc.Event
 import com.exactpro.th2.common.grpc.EventID
+import com.exactpro.th2.common.message.toTimestamp
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.EventId
-import com.exactpro.th2.common.util.toInstant
-import com.google.protobuf.util.Timestamps.toString
 
-val EventID.logId: String
-    get() = "${bookName}:${scope}:${toString(startTimestamp)}:${id}"
-
-val Event.logId: String
-    get() = id.logId + (if (hasParentId()) " -> ${parentId.logId}" else "")
-
-val Event.book: String
-    get() = id.bookName
-
-val Event.scope: String
-    get() = id.scope
-
-fun EventID.toTransport(): EventId = EventId(id, bookName, scope, startTimestamp.toInstant())
+fun EventId.toProto(): EventID = EventID.newBuilder().also {
+    it.id = id
+    it.bookName = book
+    it.scope = scope
+    it.startTimestamp = timestamp.toTimestamp()
+}.build()

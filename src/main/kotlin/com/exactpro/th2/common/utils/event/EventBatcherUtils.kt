@@ -16,22 +16,26 @@
 
 package com.exactpro.th2.common.utils.event
 
-import com.exactpro.th2.common.grpc.Event
+import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.grpc.EventID
-import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.EventId
-import com.exactpro.th2.common.util.toInstant
-import com.google.protobuf.util.Timestamps.toString
 
-val EventID.logId: String
-    get() = "${bookName}:${scope}:${toString(startTimestamp)}:${id}"
+fun EventBatcher.storeEvent(
+    parentId: EventID,
+    name: String,
+    type: String,
+    cause: Throwable? = null
+): Event = Event.start().apply {
+    endTimestamp()
+    name(name)
+    type(type)
+    status(if (cause != null) Event.Status.FAILED else Event.Status.PASSED)
 
-val Event.logId: String
-    get() = id.logId + (if (hasParentId()) " -> ${parentId.logId}" else "")
+    var error = cause
 
-val Event.book: String
-    get() = id.bookName
+    while (error != null) {
+        exception(error, true)
+        error = error.cause
+    }
 
-val Event.scope: String
-    get() = id.scope
-
-fun EventID.toTransport(): EventId = EventId(id, bookName, scope, startTimestamp.toInstant())
+    onEvent(toProto(parentId))
+}
