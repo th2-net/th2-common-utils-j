@@ -1,4 +1,4 @@
-# th2 common util library (2.1.1)
+# th2 common util library (2.2.0)
 
 This is th2 java library with useful functions for developers and QA needs.
 
@@ -17,6 +17,12 @@ Collects and groups events by their parent-event-id and calls `onBatch` method w
 elapsed or number of events in it has reached `maxBatchSize`.
 
 # Changelog
+
+## 2.2.0
+
+* bom: `4.5.0-dev`
+* common: `5.4.0-dev`
+* kotlin: `1.8.22`
 
 ## 2.1.1
 

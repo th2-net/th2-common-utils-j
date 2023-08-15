@@ -7,7 +7,7 @@ buildscript {
     }
 
     ext {
-        kotlin_version = "1.6.21"
+        kotlin_version = "1.8.22"
     }
 
     dependencies {
@@ -158,11 +158,11 @@ configurations {
 }
 
 dependencies {
-    api platform('com.exactpro.th2:bom:4.4.0')
+    api platform('com.exactpro.th2:bom:4.5.0-TH2-5035-+')
     api 'com.exactpro.th2:grpc-common:4.3.0-dev'
 
     // TODO: Use this dependency util extract th2 transport into separate library
-    compileOnly('com.exactpro.th2:common:5.3.2-dev') {
+    compileOnly('com.exactpro.th2:common:5.4.0-TH2-5035-+') {
         description 'Transport message classes are used in utilities methods'
     }
 
