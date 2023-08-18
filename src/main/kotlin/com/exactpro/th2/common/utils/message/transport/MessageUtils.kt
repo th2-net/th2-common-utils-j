@@ -41,11 +41,10 @@ import com.exactpro.th2.common.grpc.Message as ProtoMessage
 val MessageId.logId: String
     get() = "$sessionAlias:${direction.toString().lowercase()}:${timestamp}:$sequence${subsequence.joinToString("") { ".$it" }}"
 
-fun MessageGroup.toBatch(book: String, sessionGroup: String): GroupBatch = GroupBatch.builder().apply {
-    setBook(book)
-    setSessionGroup(sessionGroup)
-    addGroup(this@toBatch)
-}.build()
+fun MessageGroup.toBatch(book: String, sessionGroup: String): GroupBatch = GroupBatch(book, sessionGroup, listOf(this))
+
+fun List<MessageGroup>.toBatch(book: String, sessionGroup: String): GroupBatch =
+    GroupBatch(book, sessionGroup, this)
 
 val MessageGroup.eventIds: Sequence<EventId>
     get() = messages.asSequence()
@@ -53,9 +52,7 @@ val MessageGroup.eventIds: Sequence<EventId>
         .filterNotNull()
         .distinct()
 
-fun Message<*>.toGroup(): MessageGroup = MessageGroup.builder().apply {
-    addMessage(this@toGroup)
-}.build()
+fun Message<*>.toGroup(): MessageGroup = MessageGroup(listOf(this))
 
 fun MessageId.toProto(book: String, sessionGroup: String): MessageID = MessageID.newBuilder().also {
     it.bookName = book
@@ -186,7 +183,8 @@ fun Map<*, *>.getMap(vararg path: String): Map<*, *>? = getField(*path)?.run {
 fun Number.convertToString(): String = when (this) {
     is Byte,
     is Short,
-    is Int -> toString()
+    is Int,
+    is Long -> toString()
 
     is Float,
     is Double -> BigDecimal(toString()).stripTrailingZeros().toPlainString()
