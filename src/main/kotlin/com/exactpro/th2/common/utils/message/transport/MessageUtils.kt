@@ -272,7 +272,8 @@ fun Map<*, *>.getMap(vararg path: String): Map<*, *>? = getField(*path)?.run {
 fun Number.convertToString(): String = when (this) {
     is Byte,
     is Short,
-    is Int -> toString()
+    is Int,
+    is Long -> toString()
 
     is Float,
     is Double -> BigDecimal(toString()).stripTrailingZeros().toPlainString()
