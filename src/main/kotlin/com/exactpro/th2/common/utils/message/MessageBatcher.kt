@@ -44,9 +44,12 @@ class RawMessageBatcher(
     onError: (Throwable) -> Unit = {},
     onBatch: (MessageGroupBatch) -> Unit
 ) : Batcher<RawMessage.Builder>(maxBatchSize, maxFlushTime, executor, onError, onBatch) {
+    /**
+     * Adds [message] to the batch selected by [batchSelector].
+     * Updates timestamp in the [message] ID
+     */
     override fun onMessage(message: RawMessage.Builder) {
-        message.metadataBuilder.idBuilder.timestamp = Instant.now().toTimestamp()
-        add(batchSelector(message), message.build())
+        add(batchSelector(message), message)
     }
 }
 
@@ -58,9 +61,12 @@ class MessageBatcher(
     onError: (Throwable) -> Unit = {},
     onBatch: (MessageGroupBatch) -> Unit
 ) : Batcher<Message.Builder>(maxBatchSize, maxFlushTime, executor, onError, onBatch) {
+    /**
+     * Adds [message] to the batch selected by [batchSelector].
+     * Updates timestamp in the [message] ID
+     */
     override fun onMessage(message: Message.Builder) {
-        message.metadataBuilder.idBuilder.timestamp = Instant.now().toTimestamp()
-        add(batchSelector(message), message.build())
+        add(batchSelector(message), message)
     }
 }
 
@@ -75,10 +81,16 @@ abstract class Batcher<T>(
 
     abstract fun onMessage(message: T)
 
-    protected fun add(key: Any, message: RawMessage) = batches.getOrPut(key, ::Batch).add(message.toGroup())
-    protected fun add(key: Any, message: Message) = batches.getOrPut(key, ::Batch).add(message.toGroup())
-    protected fun add(key: Any, message: AnyMessage) = batches.getOrPut(key, ::Batch).add(message.toGroup())
-    protected fun add(key: Any, group: MessageGroup) = batches.getOrPut(key, ::Batch).add(group)
+    protected fun add(key: Any, message: RawMessage.Builder) = batches.getOrPut(key, ::Batch).add {
+        message.metadataBuilder.idBuilder.timestamp = Instant.now().toTimestamp()
+        message.toGroup()
+    }
+    protected fun add(key: Any, message: Message.Builder) = batches.getOrPut(key, ::Batch).add {
+        message.metadataBuilder.idBuilder.timestamp = Instant.now().toTimestamp()
+        message.toGroup()
+    }
+    protected fun add(key: Any, message: AnyMessage) = batches.getOrPut(key, ::Batch).add { message.toGroup() }
+    protected fun add(key: Any, group: MessageGroup) = batches.getOrPut(key, ::Batch).add { group }
 
     override fun close() {
         batches.values.forEach {
@@ -91,8 +103,8 @@ abstract class Batcher<T>(
         private var batch = MessageGroupBatch.newBuilder()
         private var future: Future<*> = CompletableFuture.completedFuture(null)
 
-        fun add(group: MessageGroup) = lock.withLock {
-            batch.addGroups(group)
+        fun add(groupSupplier: () -> MessageGroup) = lock.withLock {
+            batch.addGroups(groupSupplier.invoke())
 
             when (batch.groupsCount) {
                 1 -> future = executor.schedule(::send, maxFlushTime, MILLISECONDS)

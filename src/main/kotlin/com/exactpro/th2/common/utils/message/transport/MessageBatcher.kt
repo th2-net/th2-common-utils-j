@@ -17,7 +17,6 @@ package com.exactpro.th2.common.utils.message.transport
 
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.GroupBatch
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Message
-import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageGroup
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -38,10 +37,13 @@ class MessageBatcher(
 ) : AutoCloseable {
     private val batches = ConcurrentHashMap<Any, Batch>()
 
+    /**
+     * Adds [message] to the batch for specified [sessionGroup].
+     * Method is also updates the [Message.id] by setting `timestamp` to the current timestamp
+     */
     fun onMessage(message: Message.Builder<*>, sessionGroup: String) {
-        message.idBuilder().setTimestamp(Instant.now())
         batches.getOrPut(batchSelector(message, sessionGroup)) { Batch(book, sessionGroup) }
-            .add(message.build().toGroup())
+            .add(message)
     }
 
     override fun close() {
@@ -65,8 +67,9 @@ class MessageBatcher(
         private var batch = newBatch()
         private var future: Future<*> = CompletableFuture.completedFuture(null)
 
-        fun add(group: MessageGroup) = lock.withLock {
-            batch.addGroup(group)
+        fun add(message: Message.Builder<*>) = lock.withLock {
+            message.idBuilder().setTimestamp(Instant.now())
+            batch.addGroup(message.build().toGroup())
 
             when (batch.groupsBuilder().size) {
                 1 -> future = executor.schedule(::send, maxFlushTime, MILLISECONDS)
