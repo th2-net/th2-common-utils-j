@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.common.utils.message.transport
 
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.GroupBatch
@@ -72,8 +73,8 @@ class MessageBatcher(
             batch.addGroup(message.build().toGroup())
 
             when (batch.groupsBuilder().size) {
-                1 -> future = executor.schedule(::send, maxFlushTime, MILLISECONDS)
                 maxBatchSize -> send()
+                1 -> future = executor.schedule(::send, maxFlushTime, MILLISECONDS)
             }
         }
 

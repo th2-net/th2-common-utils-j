@@ -23,7 +23,7 @@ plugins {
     id 'signing'
     id 'com.google.protobuf' version '0.8.8' apply false
     id 'org.jetbrains.kotlin.jvm' version "${kotlin_version}"
-    id "org.owasp.dependencycheck" version "8.3.1"
+    id "org.owasp.dependencycheck" version "8.4.0"
     id "com.gorylenko.gradle-git-properties" version "2.4.1"
     id 'com.github.jk1.dependency-license-report' version '2.5'
     id "de.undercouch.download" version "5.4.0"
@@ -162,21 +162,21 @@ dependencies {
     api 'com.exactpro.th2:grpc-common:4.3.0-dev'
 
     // TODO: Use this dependency util extract th2 transport into separate library
-    compileOnly('com.exactpro.th2:common:5.4.0-dev') {
-        description 'Transport message classes are used in utilities methods'
+    compileOnly("com.exactpro.th2:common:5.5.0-dev") {
+        description "Transport message classes are used in utilities methods"
     }
 
     implementation "org.jetbrains:annotations"
     implementation "org.slf4j:slf4j-api"
 
-    implementation 'io.github.microutils:kotlin-logging:3.0.0' // The last version bases on kotlin 1.6.0
+    implementation "io.github.microutils:kotlin-logging:3.0.5"
 
-    implementation 'io.prometheus:simpleclient'
+    implementation "io.prometheus:simpleclient"
 
     testImplementation("com.fasterxml.jackson.core:jackson-databind") {
         because('provide ability to use object mapper in components')
     }
-    testImplementation 'org.mockito.kotlin:mockito-kotlin:4.0.0'
+    testImplementation "org.mockito.kotlin:mockito-kotlin:5.1.0"
     testImplementation "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
     testImplementation "org.junit.jupiter:junit-jupiter-params:${junitVersion}"
     testFixturesImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5', version: kotlin_version
