@@ -18,11 +18,14 @@ package com.exactpro.th2.common.utils.message.transport
 
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Direction
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.GroupBatch
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Message
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageId
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.RawMessage
 import com.exactpro.th2.common.utils.shutdownGracefully
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
@@ -39,6 +42,7 @@ internal class MessageBatcherTest {
     @AfterAll
     internal fun shutdown() {
         executor.shutdownGracefully()
+        callExecutor.shutdownGracefully()
     }
 
     @RepeatedTest(value = 100)
@@ -84,5 +88,47 @@ internal class MessageBatcherTest {
             }
             prevTimestamp = timestamp
         }
+    }
+
+    @Test
+    fun `send batch with single message when limit is 1 message`() {
+        val onBatch = mock<(GroupBatch) -> Unit> { }
+        val batcher = MessageBatcher(
+            maxBatchSize = 1,
+            maxFlushTime = 1000,
+            book = "test",
+            onBatch = onBatch,
+            onError = {},
+            executor = executor,
+        )
+
+        batcher.onMessage(
+            RawMessage.builder().apply {
+                idBuilder().setSessionAlias("test")
+                    .setDirection(Direction.INCOMING)
+                    .setSequence(1L)
+            },
+            "test_group"
+        )
+
+        val argumentCaptor = argumentCaptor<GroupBatch>()
+        verify(onBatch, timeout(10).times(1))
+            .invoke(argumentCaptor.capture())
+
+        val batch: GroupBatch = argumentCaptor.firstValue
+        Assertions.assertEquals(1, batch.groups.size) { "unexpected number of groups" }
+        val group = batch.groups.single()
+        Assertions.assertEquals(1, group.messages.size) { "unexpected number of messages" }
+        val message: Message<*> = group.messages.single()
+        Assertions.assertEquals(
+            MessageId.builder()
+                .setTimestamp(message.id.timestamp)
+                .setSessionAlias("test")
+                .setDirection(Direction.INCOMING)
+                .setSequence(1L)
+                .build(),
+            message.id,
+            "unexpected message id",
+        )
     }
 }
