@@ -107,8 +107,8 @@ abstract class Batcher<T>(
             batch.addGroups(groupSupplier.invoke())
 
             when (batch.groupsCount) {
-                1 -> future = executor.schedule(::send, maxFlushTime, MILLISECONDS)
                 maxBatchSize -> send()
+                1 -> future = executor.schedule(::send, maxFlushTime, MILLISECONDS)
             }
         }
 
