@@ -19,6 +19,7 @@ import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.message.addField
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Direction
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.EventId
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageId
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage
 import com.exactpro.th2.common.utils.message.FieldNotFoundException
 import com.exactpro.th2.common.utils.message.toTimestamp
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertAll
 import org.junit.jupiter.api.assertThrows
 import java.time.Instant
 import kotlin.random.Random
@@ -452,6 +454,54 @@ class MessageUtilsTest {
         fieldsSubSet.forEach { field ->
             assertEquals(source.body[field], target.body[field], "Compare '$field' field value")
         }
+    }
+
+    @Test
+    fun `copy does not add field if it doesn't exist in the source message`() {
+        val source = ParsedMessage.builder()
+            .setType("Test")
+            .setId(MessageId.DEFAULT)
+            .addField("Test1", "A")
+            .build()
+
+        val destination = ParsedMessage.builder()
+            .setType("Dest")
+            .setId(MessageId.DEFAULT)
+            // field Test2 does not exist in source
+            .copyFields(source, "Test2")
+            .build()
+
+        assertFalse(destination.body.containsKey("Test2")) {
+            "unexpected field was added to destination message: $destination"
+        }
+    }
+
+    @Test
+    fun `copy adds field if it is null and exists in source message`() {
+        val source = ParsedMessage.builder()
+            .setType("Test")
+            .setId(MessageId.DEFAULT)
+            .addField("Test1", null)
+            .build()
+
+        val destination = ParsedMessage.builder()
+            .setType("Dest")
+            .setId(MessageId.DEFAULT)
+            .copyFields(source, "Test1")
+            .build()
+
+        assertAll(
+            {
+                assertTrue(destination.body.containsKey("Test1")) {
+                    "expected field 'Test1' was not added to destination message: $destination"
+                }
+            },
+            {
+                assertNull(destination.body["Test1"]) {
+                    "unexpected value for 'Test1' field in destination message: $destination"
+                }
+            },
+        )
     }
 
     @Test
