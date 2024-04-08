@@ -21,6 +21,9 @@ elapsed or number of events in it has reached `maxBatchSize`.
 ## 2.2.3
 
 * fixed: `copyFields` adds nulls if the field does not exist in the source message
+* updates:
+  * common: 5.5.0-dev -> 5.10.0-dev (compileOnly)
+  * grpc-common: 4.3.0-dev -> 4.4.0-dev
 
 ## 2.2.2
 
