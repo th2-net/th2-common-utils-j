@@ -107,6 +107,9 @@ abstract class Batcher<T>(
             batch.addGroups(groupSupplier.invoke())
 
             when (batch.groupsCount) {
+                // The order of check is important
+                // In case of maxBatchSize = 1 we should not schedule any tasks
+                // and just need to publish batch right away
                 maxBatchSize -> send()
                 1 -> future = executor.schedule(::send, maxFlushTime, MILLISECONDS)
             }
