@@ -122,8 +122,11 @@ private fun Any?.toTreeTableEntry(): TreeTableEntry {
 
 fun ParsedMessage.FromMapBuilder.copyFields(source: ParsedMessage, vararg fields: String) = apply {
     with(bodyBuilder()) {
+        val sourceBody = source.body
         fields.forEach { field ->
-            put(field, source.body[field])
+            if (field in sourceBody) {
+                put(field, sourceBody[field])
+            }
         }
     }
 }

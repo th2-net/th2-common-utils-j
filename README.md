@@ -1,4 +1,4 @@
-# th2 common util library (2.2.2)
+# th2 common util library (2.2.3)
 
 This is th2 java library with useful functions for developers and QA needs.
 
@@ -17,6 +17,10 @@ Collects and groups events by their parent-event-id and calls `onBatch` method w
 elapsed or number of events in it has reached `maxBatchSize`.
 
 # Changelog
+
+## 2.2.3
+
+* fixed: `copyFields` adds nulls if the field does not exist in the source message
 
 ## 2.2.2
 
