@@ -16,6 +16,19 @@ pending events has reached `maxBatchSize`.
 Collects and groups events by their parent-event-id and calls `onBatch` method when `maxFlushTime` for a group has
 elapsed or number of events in it has reached `maxBatchSize`.
 
+## message
+
+### Message batcher (th2 transport protocol)
+
+Collects and groups messages by session group and calls `onBatch` method when `maxFlushTime` for a group has
+elapsed or number of events in it has reached `maxBatchSize`.
+
+### Raw message batcher (th2 transport protocol)
+
+Collects and groups raw messages by session group and calls `onBatch` method when `maxFlushTime` for a group has
+elapsed or number of events in it has reached `maxBatchSize` or batch size in bytes has reached `maxBatchSizeInBytes`.
+<br>Note: message batch size calculation logic repeats the logic implemented in [cradle-api:5.4.1-dev](https://github.com/th2-net/cradleapi/tree/5.4.1-dev) 
+
 # Changelog
 
 ## 2.3.0

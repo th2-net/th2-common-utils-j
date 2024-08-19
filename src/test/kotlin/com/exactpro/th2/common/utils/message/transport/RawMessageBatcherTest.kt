@@ -20,19 +20,29 @@ import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Direction
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.GroupBatch
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Message
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageId
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.RawMessage
+import com.exactpro.th2.common.utils.message.transport.RawMessageBatcher.Companion.CRADLE_BATCH_LEN_CONST
+import com.exactpro.th2.common.utils.message.transport.RawMessageBatcher.Companion.CRADLE_DIRECTION_SIZE
+import com.exactpro.th2.common.utils.message.transport.RawMessageBatcher.Companion.CRADLE_RAW_MESSAGE_LENGTH_IN_BATCH
+import com.exactpro.th2.common.utils.message.transport.RawMessageBatcher.Companion.CRADLE_RAW_MESSAGE_SIZE
 import com.exactpro.th2.common.utils.shutdownGracefully
 import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.assertThrows
+import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.timeout
 import org.mockito.kotlin.verify
 import java.time.Instant
 import java.util.concurrent.Executors
+import kotlin.text.Charsets.UTF_8
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 internal class RawMessageBatcherTest {
@@ -49,6 +59,7 @@ internal class RawMessageBatcherTest {
     fun `concurrent invocations preserve order by timestamp in batch`() {
         val onBatch = mock<(GroupBatch) -> Unit> { }
         val batcher = RawMessageBatcher(
+            maxBatchSizeInBytes = 1024 * 1024,
             maxBatchSize = 10,
             maxFlushTime = 100,
             book = "test",
@@ -70,17 +81,17 @@ internal class RawMessageBatcherTest {
         }
 
         val batch = argumentCaptor<GroupBatch>()
-        verify(onBatch, timeout(1000).atLeastOnce()).invoke(batch.capture())
-        val groupBatch = batch.firstValue
+        verify(onBatch, timeout(1_000).atLeastOnce()).invoke(batch.capture())
+        val groupBatch = batch.allValues.single()
 
-        Assertions.assertTrue(groupBatch.groups.isNotEmpty()) { "empty group batch" }
+        assertTrue(groupBatch.groups.isNotEmpty()) { "empty group batch" }
         val messageSequence = groupBatch.groups.asSequence()
             .flatMap { it.messages }
         var prevTimestamp: Instant? = null
         for (message in messageSequence) {
             val timestamp = message.id.timestamp
             if (prevTimestamp != null) {
-                Assertions.assertTrue(
+                assertTrue(
                     prevTimestamp <= timestamp,
                 ) {
                     "unordered timestamps: $prevTimestamp, $timestamp"
@@ -94,6 +105,7 @@ internal class RawMessageBatcherTest {
     fun `send batch with single message when limit is 1 message`() {
         val onBatch = mock<(GroupBatch) -> Unit> { }
         val batcher = RawMessageBatcher(
+            maxBatchSizeInBytes = 1024 * 1024,
             maxBatchSize = 1,
             maxFlushTime = 1000,
             book = "test",
@@ -112,15 +124,14 @@ internal class RawMessageBatcherTest {
         )
 
         val argumentCaptor = argumentCaptor<GroupBatch>()
-        verify(onBatch, timeout(10).times(1))
-            .invoke(argumentCaptor.capture())
+        verify(onBatch).invoke(argumentCaptor.capture())
 
         val batch: GroupBatch = argumentCaptor.firstValue
-        Assertions.assertEquals(1, batch.groups.size) { "unexpected number of groups" }
+        assertEquals(1, batch.groups.size) { "unexpected number of groups" }
         val group = batch.groups.single()
-        Assertions.assertEquals(1, group.messages.size) { "unexpected number of messages" }
+        assertEquals(1, group.messages.size) { "unexpected number of messages" }
         val message: Message<*> = group.messages.single()
-        Assertions.assertEquals(
+        assertEquals(
             MessageId.builder()
                 .setTimestamp(message.id.timestamp)
                 .setSessionAlias("test")
@@ -130,5 +141,127 @@ internal class RawMessageBatcherTest {
             message.id,
             "unexpected message id",
         )
+    }
+
+    @Test
+    fun `send batch with single message when limit is 1 byte`() {
+        val onBatch = mock<(GroupBatch) -> Unit> { }
+        val batcher = RawMessageBatcher(
+            maxBatchSizeInBytes = 1,
+            maxBatchSize = 10,
+            maxFlushTime = 1000,
+            book = "test",
+            onBatch = onBatch,
+            onError = {},
+            executor = executor,
+        )
+
+        batcher.onMessage(
+            RawMessage.builder().apply {
+                idBuilder().setSessionAlias("test")
+                    .setDirection(Direction.INCOMING)
+                    .setSequence(1L)
+            },
+            "test_group"
+        )
+
+        val argumentCaptor = argumentCaptor<GroupBatch>()
+        verify(onBatch).invoke(argumentCaptor.capture())
+
+        val batch: GroupBatch = argumentCaptor.firstValue
+        assertEquals(1, batch.groups.size) { "unexpected number of groups" }
+        val group = batch.groups.single()
+        assertEquals(1, group.messages.size) { "unexpected number of messages" }
+        val message: Message<*> = group.messages.single()
+        assertEquals(
+            MessageId.builder()
+                .setTimestamp(message.id.timestamp)
+                .setSessionAlias("test")
+                .setDirection(Direction.INCOMING)
+                .setSequence(1L)
+                .build(),
+            message.id,
+            "unexpected message id",
+        )
+    }
+
+    @Test
+    fun `send batch with single message when limit equals to message size`() {
+        val onBatch = mock<(GroupBatch) -> Unit> { }
+        val sessionAlias = "test-session-alias"
+        val protocol = "test-protocol"
+        val metadata = mapOf("test-property" to "test-property-value")
+        val body = "test-body".toByteArray(UTF_8)
+        val batcher = RawMessageBatcher(
+            maxBatchSizeInBytes = CRADLE_BATCH_LEN_CONST +
+                    CRADLE_RAW_MESSAGE_LENGTH_IN_BATCH +
+                    CRADLE_RAW_MESSAGE_SIZE +
+                    sessionAlias.length +
+                    CRADLE_DIRECTION_SIZE +
+                    protocol.length +
+                    metadata.asSequence().sumOf { (key, value) -> key.length + value.length } +
+                    body.size,
+            maxBatchSize = 10,
+            maxFlushTime = 1000,
+            book = "test",
+            onBatch = onBatch,
+            onError = {},
+            executor = executor,
+        )
+
+        batcher.onMessage(
+            RawMessage.builder().apply {
+                idBuilder().setSessionAlias(sessionAlias)
+                    .setDirection(Direction.INCOMING)
+                    .setSequence(1L)
+                setProtocol(protocol)
+                metadataBuilder().putAll(metadata)
+                setBody(body)
+            },
+            "test-session-group"
+        )
+
+        val argumentCaptor = argumentCaptor<GroupBatch>()
+        verify(onBatch).invoke(argumentCaptor.capture())
+
+        val batch: GroupBatch = argumentCaptor.firstValue
+        assertEquals(1, batch.groups.size) { "unexpected number of groups" }
+        val group = batch.groups.single()
+        assertEquals(1, group.messages.size) { "unexpected number of messages" }
+        val message: Message<*> = group.messages.single()
+        assertEquals(
+            MessageId.builder()
+                .setTimestamp(message.id.timestamp)
+                .setSessionAlias(sessionAlias)
+                .setDirection(Direction.INCOMING)
+                .setSequence(1L)
+                .build(),
+            message.id,
+            "unexpected message id",
+        )
+    }
+
+    @Test
+    fun `send parsed message`() {
+        val onBatch = mock<(GroupBatch) -> Unit> { }
+        val batcher = RawMessageBatcher(
+            book = "test",
+            onBatch = onBatch,
+            executor = executor,
+        )
+
+        assertThrows<IllegalArgumentException> {
+            batcher.onMessage(
+                ParsedMessage.builder().apply {
+                    idBuilder().setSessionAlias("test")
+                        .setDirection(Direction.INCOMING)
+                        .setSequence(1L)
+                },
+                "test_group"
+            )
+        }.also { exception ->
+            assertEquals("RawMessageBatcher handles only Builder but receive FromMapBuilderImpl", exception.message)
+        }
+        verify(onBatch, never()).invoke(any())
     }
 }

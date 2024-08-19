@@ -75,8 +75,9 @@ open class MessageBatcher(
             builder.idBuilder().setTimestamp(Instant.now())
             val message: Message<*> = builder.build()
 
-            beforeAddMessage(message)
+            beforeAdd(message)
             batch.addGroup(message.toGroup())
+            afterAdd()
 
             when (batch.groupsBuilder().size) {
                 // The order of check is important
@@ -87,7 +88,8 @@ open class MessageBatcher(
             }
         }
 
-        protected open fun beforeAddMessage(message: Message<*>) {}
+        protected open fun beforeAdd(message: Message<*>) {}
+        protected open fun afterAdd() {}
         protected open fun onNewBatch() {}
 
         protected fun send() = lock.withLock<Unit> {
@@ -135,12 +137,20 @@ class RawMessageBatcher(
      * Adds [message] to the batch for specified [sessionGroup].
      * Method is also updates the [Message.id] by setting `timestamp` to the current timestamp
      */
+    fun onMessage(message: RawMessage.Builder, sessionGroup: String) {
+        super.onMessage(message, sessionGroup)
+    }
+
+    /**
+     * Adds [message] to the batch for specified [sessionGroup].
+     * Method is also updates the [Message.id] by setting `timestamp` to the current timestamp
+     */
     override fun onMessage(message: Message.Builder<*>, sessionGroup: String) {
         require(message is RawMessage.Builder) {
             "${RawMessageBatcher::class.java.simpleName} handles only ${RawMessage.Builder::class.java.simpleName} " +
                     "but receive ${message::class.java.simpleName}"
         }
-        super.onMessage(message, sessionGroup)
+        onMessage(message, sessionGroup)
     }
 
     override fun newBatch(sessionGroup: String): Batch = RawBatch(book, sessionGroup)
@@ -154,13 +164,21 @@ class RawMessageBatcher(
     ) {
         private var batchSizeInBytes = CRADLE_BATCH_LEN_CONST
 
-        override fun beforeAddMessage(message: Message<*>) {
+        override fun beforeAdd(message: Message<*>) {
             require(message is RawMessage) {
                 "${RawBatch::class.java.simpleName} handles only ${RawMessage::class.java.simpleName} " +
                         "but receive ${message::class.java.simpleName}"
             }
             val messageSizeInBytes = message.calculateSizeInBytes() + CRADLE_RAW_MESSAGE_LENGTH_IN_BATCH
             if (batchSizeInBytes + messageSizeInBytes > maxBatchSizeInBytes) {
+                send()
+            } else {
+                batchSizeInBytes += messageSizeInBytes
+            }
+        }
+
+        override fun afterAdd() {
+            if (batchSizeInBytes >= maxBatchSizeInBytes) {
                 send()
             }
         }
@@ -173,24 +191,24 @@ class RawMessageBatcher(
 
     companion object {
         /**
-         * Raw message batch length constant
+         * Cradle raw message batch length constant
          * 4 - magic number
          * 1 - protocol version
          * 4 - message sizes
          * Collapsed constant = 9
          */
-        private const val CRADLE_BATCH_LEN_CONST = 9L
+        internal const val CRADLE_BATCH_LEN_CONST = 9L
 
         /**
-         * Raw message length in batch constant
+         * Cradle raw message length in batch constant
          * every message:
          * 4 - message length
          * x - message
          */
-        private const val CRADLE_RAW_MESSAGE_LENGTH_IN_BATCH = 4L
+        internal const val CRADLE_RAW_MESSAGE_LENGTH_IN_BATCH = 4L
 
-        /*
-         * Raw message size in batch constant
+        /**
+         * Cradle raw message size in batch constant
          * 2 - magic number
          * 8 - index (long)
          * 4 + 8 = Instant (timestamp) long (seconds) + int (nanos)
@@ -200,9 +218,12 @@ class RawMessageBatcher(
          * Collapsed constant = 30
          *
          */
-        private const val CRADLE_RAW_MESSAGE_SIZE = 30L
+        internal const val CRADLE_RAW_MESSAGE_SIZE = 30L
 
-        private const val CRADLE_DIRECTION_SIZE = 1L
+        /**
+         * Cradle direction size
+         */
+        internal const val CRADLE_DIRECTION_SIZE = 1L
 
         private fun RawMessage.calculateSizeInBytes(): Long = body.readableBytes() + CRADLE_RAW_MESSAGE_SIZE +
                 id.sessionAlias.length +

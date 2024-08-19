@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Exactpro (Exactpro Systems Limited)
+ * Copyright 2023-2024 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,8 +70,8 @@ internal class MessageBatcherTest {
         }
 
         val batch = argumentCaptor<GroupBatch>()
-        verify(onBatch, timeout(1000).atLeastOnce()).invoke(batch.capture())
-        val groupBatch = batch.firstValue
+        verify(onBatch, timeout(1_000).atLeastOnce()).invoke(batch.capture())
+        val groupBatch = batch.allValues.single()
 
         Assertions.assertTrue(groupBatch.groups.isNotEmpty()) { "empty group batch" }
         val messageSequence = groupBatch.groups.asSequence()
@@ -112,8 +112,7 @@ internal class MessageBatcherTest {
         )
 
         val argumentCaptor = argumentCaptor<GroupBatch>()
-        verify(onBatch, timeout(10).times(1))
-            .invoke(argumentCaptor.capture())
+        verify(onBatch).invoke(argumentCaptor.capture())
 
         val batch: GroupBatch = argumentCaptor.firstValue
         Assertions.assertEquals(1, batch.groups.size) { "unexpected number of groups" }
