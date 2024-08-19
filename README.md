@@ -20,6 +20,7 @@ elapsed or number of events in it has reached `maxBatchSize`.
 
 ## 2.3.0
 
+* added `RawMessageBatcher` for th2 transport protocol 
 * updates:
   * th2 gradle plugin: `0.1.1`
   * bom: `4.6.1`
