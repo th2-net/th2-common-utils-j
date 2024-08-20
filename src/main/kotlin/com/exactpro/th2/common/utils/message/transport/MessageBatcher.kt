@@ -75,10 +75,10 @@ open class MessageBatcher(
             builder.idBuilder().setTimestamp(Instant.now())
             val message: Message<*> = builder.build()
 
-            beforeAdd(message)
+            if(!checkBeforeAdd(message)) send()
             batch.addGroup(message.toGroup())
-            afterAdd()
 
+            if(!checkAfterAdd()) send()
             when (batch.groupsBuilder().size) {
                 // The order of check is important
                 // In case of maxBatchSize = 1 we should not schedule any tasks
@@ -88,11 +88,11 @@ open class MessageBatcher(
             }
         }
 
-        protected open fun beforeAdd(message: Message<*>) {}
-        protected open fun afterAdd() {}
+        protected open fun checkBeforeAdd(message: Message<*>): Boolean { return true }
+        protected open fun checkAfterAdd(): Boolean { return true }
         protected open fun onNewBatch() {}
 
-        protected fun send() = lock.withLock<Unit> {
+        private fun send() = lock.withLock<Unit> {
             if (batch.groupsBuilder().isEmpty()) return
             runCatching { onBatch(batch.build()) }.onFailure(onError)
             batch = newBatch()
@@ -164,24 +164,20 @@ class RawMessageBatcher(
     ) {
         private var batchSizeInBytes = CRADLE_BATCH_LEN_CONST
 
-        override fun beforeAdd(message: Message<*>) {
+        override fun checkBeforeAdd(message: Message<*>): Boolean {
             require(message is RawMessage) {
                 "${RawBatch::class.java.simpleName} handles only ${RawMessage::class.java.simpleName} " +
                         "but receive ${message::class.java.simpleName}"
             }
             val messageSizeInBytes = message.calculateSizeInBytes() + CRADLE_RAW_MESSAGE_LENGTH_IN_BATCH
             if (batchSizeInBytes + messageSizeInBytes > maxBatchSizeInBytes) {
-                send()
-            } else {
-                batchSizeInBytes += messageSizeInBytes
+                return false
             }
+            batchSizeInBytes += messageSizeInBytes
+            return true
         }
 
-        override fun afterAdd() {
-            if (batchSizeInBytes >= maxBatchSizeInBytes) {
-                send()
-            }
-        }
+        override fun checkAfterAdd(): Boolean = batchSizeInBytes < maxBatchSizeInBytes
 
         override fun onNewBatch() {
             super.onNewBatch()
