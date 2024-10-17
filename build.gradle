@@ -44,7 +44,7 @@ configurations {
 
 dependencies {
     // TODO: Use this dependency util extract th2 transport into separate library
-    compileOnly("com.exactpro.th2:common:5.14.0-dev") {
+    compileOnly("com.exactpro.th2:common:5.15.0-windows-compatible-11379366273-569bd5b-SNAPSHOT") {
         because("Transport message classes are used in utilities methods")
     }
 
