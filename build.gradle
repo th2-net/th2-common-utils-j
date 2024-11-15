@@ -2,7 +2,7 @@ plugins {
     id 'maven-publish'
     id 'java-test-fixtures'
     id 'org.jetbrains.kotlin.jvm' version '1.8.22'
-    id 'com.exactpro.th2.gradle.publish' version '0.1.1'
+    id 'com.exactpro.th2.gradle.publish' version '0.1.5'
 }
 
 group = 'com.exactpro.th2'
