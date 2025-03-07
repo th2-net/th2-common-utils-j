@@ -27,14 +27,20 @@ import java.util.concurrent.TimeUnit.MILLISECONDS
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
+private const val DEFAULT_MAX_BATCH_SIZE_BYTES = 1_024L * 1_024L
+
+private const val DEFAULT_MAX_BATCH_SIZE_EVENTS = 100
+
+private const val DEFAULT_MAX_FLUSH_TIME_MILLIS = 1000L
+
 /**
  * Collects and groups events by their parent-event-id and calls `onBatch` method when `maxFlushTime`
  * for a group has elapsed or number of events in it has reached `maxBatchSize`.
  */
 class EventBatcher(
-    private val maxBatchSizeInBytes: Long = 1_024 * 1_024,
-    private val maxBatchSizeInItems: Int = 100,
-    private val maxFlushTime: Long = 1000,
+    private val maxBatchSizeInBytes: Long = DEFAULT_MAX_BATCH_SIZE_BYTES,
+    private val maxBatchSizeInItems: Int = DEFAULT_MAX_BATCH_SIZE_EVENTS,
+    private val maxFlushTime: Long = DEFAULT_MAX_FLUSH_TIME_MILLIS,
     private val executor: ScheduledExecutorService,
     private val onBatch: (EventBatch) -> Unit,
 ) : AutoCloseable {
@@ -44,11 +50,13 @@ class EventBatcher(
         .build<EventID, Batch>()
         .asMap()
 
-    fun onEvent(event: Event) = batches.getOrPut(event.parentId, ::Batch).add(event)
+    fun onEvent(event: Event) = batches.getOrPut(event.parentId) { Batch(event.parentId) }.add(event)
 
     override fun close() = batches.values.forEach(Batch::close)
 
-    private inner class Batch : AutoCloseable {
+    private inner class Batch(
+        private val parentEventID: EventID,
+    ) : AutoCloseable {
         private val lock = ReentrantLock()
         private var batch = EventBatch.newBuilder()
         private var batchSizeInBytes = BATCH_LEN_CONST
@@ -73,38 +81,47 @@ class EventBatcher(
 
         private fun send() = lock.withLock<Unit> {
             if (batch.eventsCount == 0) return
+            if (propagateParentIdToBatch() && batch.eventsCount > 1) {
+                // it only makes sense to store events as batch if we have more than one event in the batch
+                batch.parentEventId = parentEventID
+            }
             batch.build().runCatching(onBatch)
             batch.clearEvents()
+            batch.clearParentEventId()
             batchSizeInBytes = BATCH_LEN_CONST
             future.cancel(false)
         }
+
+        private fun propagateParentIdToBatch(): Boolean =
+            parentEventID != EventID.getDefaultInstance()
     }
 
     companion object {
         /**
-		* 4 - magic number
-		* 1 - protocol version
-		* 4 - message sizes
-		* Collapsed constant = 9
-	    */
+         * 4 - magic number
+         * 1 - protocol version
+         * 4 - message sizes
+         * Collapsed constant = 9
+         */
         private const val BATCH_LEN_CONST = 9L
 
         /**
-        * 2 - magic number
-        * 4 + 8 = Instant (start timestamp) long (seconds) + int (nanos) - start timestamp ID
-        * 4 - id length
-        * 4 - name length
-        * 4 - type length
-        * 4 + 8 = Instant (start timestamp) long (seconds) + int (nanos) - start timestamp parent ID
-        * 4 - parent id length
-        * 4 + 8 = Instant (end timestamp) long (seconds) + int (nanos)
-        * 1 = is success
-        * 4 = body len
-        * ===
-        * 59
-        */
+         * 2 - magic number
+         * 4 + 8 = Instant (start timestamp) long (seconds) + int (nanos) - start timestamp ID
+         * 4 - id length
+         * 4 - name length
+         * 4 - type length
+         * 4 + 8 = Instant (start timestamp) long (seconds) + int (nanos) - start timestamp parent ID
+         * 4 - parent id length
+         * 4 + 8 = Instant (end timestamp) long (seconds) + int (nanos)
+         * 1 = is success
+         * 4 = body len
+         * ===
+         * 59
+         */
         private const val EVENT_RECORD_CONST = 59L
         private const val BATCH_LENGTH_IN_BATCH = 4L
+
         /**
          * This logic is copied the estore project.
          */

@@ -18,8 +18,13 @@ package com.exactpro.th2.common.utils.event
 
 import com.exactpro.th2.common.grpc.Event
 import com.exactpro.th2.common.grpc.EventBatch
+import com.exactpro.th2.common.grpc.EventID
+import com.exactpro.th2.common.utils.event.EventBatcher.Companion
 import com.exactpro.th2.common.utils.event.EventBatcher.Companion.calculateSizeInBytes
+import com.google.protobuf.util.Timestamps
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import org.mockito.kotlin.any
@@ -55,10 +60,12 @@ class EventBatcherTest {
             verify(executor, times(1)).schedule(any(), any(), any())
             verify(future, times(1)).cancel(any())
 
+            val batch = batchCaptor.firstValue
             assertAll(
-                { assertEquals(2, batchCaptor.firstValue.eventsCount) },
-                { assertEquals(EVENT_1, batchCaptor.firstValue.getEvents(0)) },
-                { assertEquals(EVENT_2, batchCaptor.firstValue.getEvents(1)) },
+                { assertEquals(2, batch.eventsCount) },
+                { assertEquals(PARENT_ID, batch.parentEventId, "batch should same parent ID as events") },
+                { assertEquals(EVENT_1, batch.getEvents(0)) },
+                { assertEquals(EVENT_2, batch.getEvents(1)) },
             )
         }
     }
@@ -89,13 +96,17 @@ class EventBatcherTest {
             verify(executor, times(3)).schedule(any(), any(), any())
             verify(future, times(2)).cancel(any())
 
+            val batch1 = batchCaptor.firstValue
             assertAll(
-                { assertEquals(1, batchCaptor.firstValue.eventsCount) },
-                { assertEquals(EVENT_1, batchCaptor.firstValue.getEvents(0)) },
+                { assertEquals(1, batch1.eventsCount) },
+                { assertFalse(batch1.hasParentEventId(), "batch with single event should not have parent ID") },
+                { assertEquals(EVENT_1, batch1.getEvents(0)) },
             )
+            val batch2 = batchCaptor.secondValue
             assertAll(
-                { assertEquals(1, batchCaptor.secondValue.eventsCount) },
-                { assertEquals(EVENT_2, batchCaptor.secondValue.getEvents(0)) },
+                { assertEquals(1, batch2.eventsCount) },
+                { assertFalse(batch2.hasParentEventId(), "batch with single event should not have parent ID") },
+                { assertEquals(EVENT_2, batch2.getEvents(0)) },
             )
         }
     }
@@ -121,28 +132,40 @@ class EventBatcherTest {
             runnableCaptor.firstValue.run()
             verify(onBatch, times(1))(any())
             verify(future, times(1)).cancel(any())
+            val batch = batchCaptor.firstValue
             assertAll(
-                { assertEquals(1, batchCaptor.firstValue.eventsCount) },
-                { assertEquals(EVENT_1, batchCaptor.firstValue.getEvents(0)) },
+                { assertEquals(1, batch.eventsCount) },
+                { assertFalse(batch.hasParentEventId(), "batch with single event should not have parent ID") },
+                { assertEquals(EVENT_1, batch.getEvents(0)) },
             )
         }
     }
 
     companion object {
+        private val PARENT_ID = EventID.newBuilder()
+            .setId("test")
+            .setScope("scope")
+            .setBookName("book")
+            .setStartTimestamp(Timestamps.now())
+            .build()
+
         private val EVENT_1 = Event.newBuilder().apply {
             idBuilder.apply {
                 id = "test_1"
             }
+            parentId = PARENT_ID
         }.build()
         private val EVENT_2 = Event.newBuilder().apply {
             idBuilder.apply {
                 id = "test_2"
             }
+            parentId = PARENT_ID
         }.build()
         private val EVENT_3 = Event.newBuilder().apply {
             idBuilder.apply {
                 id = "test_3"
             }
+            parentId = PARENT_ID
         }.build()
 
         private val EVENT_SIZE_IN_BYTES = maxOf(
