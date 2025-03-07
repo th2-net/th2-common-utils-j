@@ -1,4 +1,4 @@
-# th2 common util library (2.3.0)
+# th2 common util library (2.3.1)
 
 This is th2 java library with useful functions for developers and QA needs.
 
@@ -30,6 +30,11 @@ elapsed or number of events in it has reached `maxBatchSize` or batch size in by
 <br>Note: message batch size calculation logic repeats the logic implemented in [cradle-api:5.4.1-dev](https://github.com/th2-net/cradleapi/tree/5.4.1-dev) 
 
 # Changelog
+
+## 2.3.1
+
+* fixed:
+  * `EventBatcher` does not set parent ID that leads to storing each event as an individual entity in cradle
 
 ## 2.3.0
 
