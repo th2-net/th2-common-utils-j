@@ -4,7 +4,7 @@ kotlin = "2.2.10"
 [libraries]
 kotlin-logging = { group = "io.github.oshai", name = "kotlin-logging", version = "7.0.13" }
 
-th2-common = { group = "com.exactpro.th2", name = "common", version = "5.16.0-dev" }
+th2-common = { group = "com.exactpro.th2", name = "common", version = "5.16.1-dev" }
 
 junit-bom = { group = "org.junit", name = "junit-bom", version = "5.13.4" }
 mockito-kotlin = { group = "org.mockito.kotlin", name = "mockito-kotlin", version = "6.0.0" } # kotlin:1.9.20 is transitive dependency sins 5.4.0
