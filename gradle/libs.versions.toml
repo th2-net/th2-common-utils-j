@@ -2,7 +2,7 @@
 kotlin = "2.2.10"
 
 [libraries]
-kotlin-logging = { group = "io.github.oshai", name = "kotlin-logging", version = "7.0.13" }
+kotlin-logging = { group = "io.github.oshai", name = "kotlin-logging", version = "7.0.14" }
 
 th2-common = { group = "com.exactpro.th2", name = "common", version = "5.17.0-dev" }
 
