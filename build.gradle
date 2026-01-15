@@ -38,6 +38,7 @@ dependencies {
         because("provide ability to use object mapper in components")
     }
     testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.kotlinx.coroutines.core)
     testImplementation(platform(libs.junit.bom))
     testImplementation "org.junit.jupiter:junit-jupiter-api"
     testImplementation "org.junit.jupiter:junit-jupiter-params"
