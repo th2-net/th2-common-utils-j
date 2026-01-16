@@ -8,7 +8,7 @@ th2-common = { group = "com.exactpro.th2", name = "common", version = "5.17.1-de
 
 junit-bom = { group = "org.junit", name = "junit-bom", version = "5.14.2" }
 mockito-kotlin = { group = "org.mockito.kotlin", name = "mockito-kotlin", version = "6.2.0" }
-kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version = "1.8.1" }
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version = "1.10.2" }
 
 [plugins]
 th2-publish = { id = "com.exactpro.th2.gradle.publish", version = "0.3.14" }
