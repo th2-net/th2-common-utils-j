@@ -4,7 +4,7 @@ kotlin = "2.2.10"
 [libraries]
 kotlin-logging = { group = "io.github.oshai", name = "kotlin-logging", version = "7.0.14" }
 
-th2-common = { group = "com.exactpro.th2", name = "common", version = "5.17.1-dev" }
+th2-common = { group = "com.exactpro.th2", name = "common", version = "5.17.2-dev" }
 
 junit-bom = { group = "org.junit", name = "junit-bom", version = "5.14.2" }
 mockito-kotlin = { group = "org.mockito.kotlin", name = "mockito-kotlin", version = "6.2.0" }
