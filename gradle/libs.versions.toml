@@ -7,7 +7,7 @@ kotlin-logging = { group = "io.github.oshai", name = "kotlin-logging", version =
 th2-common = { group = "com.exactpro.th2", name = "common", version = "5.17.2-dev" }
 
 junit-bom = { group = "org.junit", name = "junit-bom", version = "5.14.2" }
-mockito-kotlin = { group = "org.mockito.kotlin", name = "mockito-kotlin", version = "6.2.2" }
+mockito-kotlin = { group = "org.mockito.kotlin", name = "mockito-kotlin", version = "6.2.3" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version = "1.10.2" }
 
 [plugins]
