@@ -11,5 +11,5 @@ mockito-kotlin = { group = "org.mockito.kotlin", name = "mockito-kotlin", versio
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version = "1.10.2" }
 
 [plugins]
-th2-publish = { id = "com.exactpro.th2.gradle.publish", version = "0.3.14" }
+th2-publish = { id = "com.exactpro.th2.gradle.publish", version = "0.3.15" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
